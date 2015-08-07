@@ -40,82 +40,79 @@ object Pipeline {
     // PFAD zu den Dateien, (also nicht zu einem einzelnen File!)
     val path_healthy = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Healthy"
     val path_diseased = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Diseased"
-    // List der Files
-    //val files_healthy = getListOfFiles(path_healthy)
-    //val files_diseased = getListOfFiles(path_diseased)
 
+
+    // Pfade und FileWriter für einige temporäre Dateien:
+    // SVM-File, Netzwerkmatrix,Knoten des Netzwerkes, unvollständige Matrix,
     import java.io._
-    val outputPath_SVM: String = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/vectors"
+    val outputPath_SVM: String = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/svmvectors"
     val outputPath_Matrix: String = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/matrix"
     val nodes_file_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/PRBNodes"
+    val incompletematrix_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/matrix_tocomplete"
+
     val pw = new FileWriter(new File(outputPath_SVM), true)
     val pw_matrix = new FileWriter(new File(outputPath_Matrix), true)
     val pw_nodes_file = new FileWriter(new File(nodes_file_path), true)
-
-    var genelist = List[String]()
-    var countslist_test = List[Double]()
+    val pw_incompletematrix = new FileWriter(new File(incompletematrix_path), true)
 
 
-    // Matrix mit den Werten. Reihen sind die verschiedenen Pesonene, Spalten die Genecounts
+
+    // Matrix mit den Werten. Reihen sind die verschiedenen Personen, Spalten die Genecounts
     var matrixaslist = List[List[Double]]()
 
-
+    val testpath = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Test"
+    val incompletematrix =  matrixCreation(testpath)
+    writeMatrixToCSV(incompletematrix, pw_incompletematrix)
+    //
+    // Hier die Matrix Completion mit ALS Join. Inputratings = incompletematrix_path
+    // resultmatrix = ALSJoin(...)
+    //
     preprocessdata(path_healthy,1)
     preprocessdata(path_diseased,-1)
 
+    // SVM
+    val svmData: DataSet[LabeledVector] = MLUtils.readLibSVM(env ,outputPath_SVM)
+
+    val svm = SVM()
+      .setBlocks(env.getParallelism)
+      .setIterations(100)
+      .setRegularization(0.001)
+      .setStepsize(0.1)
+      .setSeed(42)
+
+    svm.fit(svmData)
+    val f = svm.weightsOption
+    val weights = f.get.collect()
+    val weightslist = weights.toList
+
+    // Testen des classifiers
+    val testperson_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Healthy/TCGA-E2-A1BC-01A-11R-A12O-13.mirna.quantification.txt"
+    val testperson_counts: List[Double] = readOnePersonsData(testperson_path)._1
+
+    val product = (weightslist(0).toArray, testperson_counts).zipped.map((c1, c2) => c1 * c2).toArray
+    println(product.sum)
 
 
+    def preprocessdata(path: String, label: Int) {
 
-    def preprocessdata(path: String, label: Int){
 
-
-      val  files = getListOfFiles(path)
+      val files = getListOfFiles(path)
       for (k <- Range(0, files.length)) {
 
 
-      // Aktuelles File
-      val path_short = path + "/" + files(k).getName
+        // Aktuelles File
+        val path_short = path + "/" + files(k).getName
+
+        val array = readOnePersonsData(path_short)._1
 
 
-      // Read the text and consider the first line. Find out which columns represent the Gene count
-      // Necessary because the files are structured differently
-      val text = Source.fromFile(path_short).getLines().toList
-      val firstline = text(0)
-      val columns = firstline.split("\t")
+        //----------------
+        val dv = DenseVector(array.toArray)
 
-      val nameindex = 0
-      var countindex = 1
-      for (i <- Range(0, columns.length)) {
-        if (columns(i) == "reads_per_million_miRNA_mapped")
-          countindex = i
-      }
-
-      val data = readmiRNA(env, path_short, Array(nameindex, countindex))
-      //println(data.count())
-
-
-      // Die Gene counts in eine List umwandeln
-      //val outputPath_Counts = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/counts"
-        var CountsDataSet = data.map(c => c.count)
-        CountsDataSet = CountsDataSet.filter { line => line.contains("reads") == false }
-        //countslist_test =  CountsDataSet.map(c => c.toDouble).collect().toList
-
-        val counts = CountsDataSet.collect()
-        val countslist = counts.toList
-
-        var IDsDataSet = data.map(c => c.ID).filter{line => line.contains("ID") == false}
-        val ids = IDsDataSet.collect()
-        genelist = ids.toList
-
-
-      //----------------
-        val array: Array[Double] = (countslist map (_.toDouble)).toArray
-        val dv = DenseVector(array)
-
-        var lv = LabeledVector(label, dv)
+        val lv = LabeledVector(label, dv)
 
         // geneMatrix füllen
-       matrixaslist =  array.toList :: matrixaslist
+        matrixaslist = array.toList :: matrixaslist
 
         pw.write(lv.label.toInt + " ")
         for (j <- Range(0, lv.vector.size)) {
@@ -123,12 +120,150 @@ object Pipeline {
         }
         pw.write("\n")
 
+      }
+    }
+
+    def preprocessdataFromMatrix(matrix: Array[Array[Double]], label: Int) {
+
+
+      for (k <- Range(0, matrix.length)) {
+
+
+        val array = matrix(0)
+
+
+        val dv = DenseVector(array.toArray)
+
+        val lv = LabeledVector(label, dv)
+
+        // geneMatrix füllen
+        matrixaslist = array.toList :: matrixaslist
+
+        pw.write(lv.label.toInt + " ")
+        for (j <- Range(0, lv.vector.size)) {
+          pw.write((j + 1) + ":" + lv.vector(j) + " ")
+        }
+        pw.write("\n")
+
+      }
     }
 
 
+     def readOnePersonsData(path: String): (List[Double],List[String]) = {
 
-  }
+       val text = Source.fromFile(path).getLines().toList
+       val firstline = text(0)
+       val columns = firstline.split("\t")
 
+       val nameindex = 0
+       var countindex = 1
+       for (i <- Range(0, columns.length)) {
+         if (columns(i) == "reads_per_million_miRNA_mapped")
+           countindex = i
+       }
+
+       val data = readmiRNA(env, path, Array(nameindex, countindex))
+       val tuples = data.collect()
+       var countslist = List[Double]()
+       var genelist = List[String]()
+
+       //Ich übertrage hier einzeln die Werte aus dem DataSet in Listen. Der Grund ist, dass der
+       // collect-Befehl für DataSets die Daten umordnet, was sehr ärgerlich ist
+       var j = 0
+       while (j < tuples.length){
+         if (tuples(j).count.contains("reads") == false) {
+           genelist = tuples(j).ID :: genelist
+           countslist = tuples(j).count.toDouble :: countslist
+         }
+         j = j + 1
+       }
+
+       // Die Gene counts in eine List umwandeln
+       /*var CountsDataSet = data.map(c => c.count)
+       CountsDataSet = CountsDataSet.filter { line => line.contains("reads") == false }
+       countslist_test = CountsDataSet.map(c => c.toDouble).collect().toList
+
+       val counts = CountsDataSet.collect()
+       //val countslist = counts.toList
+
+       val IDsDataSet = data.map(c => c.ID).filter { line => line.contains("ID") == false }
+       val ids = IDsDataSet.collect()
+       //genelist = ids.toList*/
+
+      return (countslist , genelist)
+     }
+
+
+    def matrixCreation(path: String): Array[Array[Double]] =  {
+
+      val files = getListOfFiles(path)
+
+      var allCounts = List[List[Double]]()
+      var allGenes = List[List[String]]()
+      var uniqueGenes = List[String]()
+
+
+      for (i <- Range(0, files.length)) {
+
+        val path_short = path + "/" + files(i).getName
+        val temp_lists = readOnePersonsData(path_short)
+        uniqueGenes = uniqueGenes ::: temp_lists._2 distinct;
+        allGenes = allGenes :+ temp_lists._2
+        allCounts =  allCounts :+ temp_lists._1.toList
+      }
+
+      // 'uniqueGenes'enthält alle Gene, die in mindestens einem File vorkommen, genau ein Mal
+
+      var matrix = Array.ofDim[Double](files.length,uniqueGenes.length)
+
+      var allstrings = allGenes(0)
+
+
+      for (j <- Range(0, allstrings.length)) {
+        matrix(0)(j) = allCounts(0)(j)
+      }
+
+      for (k <- Range(1, files.length)) {
+        allstrings = allstrings ::: allGenes(k) distinct;
+        val currentgenes = allGenes(k)
+        val currentcounts = allCounts(k)
+
+        for (j <- Range(0, allstrings.length)) {
+          if (currentgenes.contains(allstrings(j))) {
+            val index = currentgenes.indexOf(allstrings(j))
+            matrix(1)(j) = currentcounts(index)
+          }
+          else {
+            matrix(1)(j) = 0
+          }
+        }
+      }
+
+      for (i <- Range(0, matrix.length)) {
+        for (j <- Range(0, matrix(0).length)) {
+
+          print(matrix(i)(j) + "  ")
+        }
+        println()
+      }
+    println(allstrings)
+
+    return matrix
+    }
+
+    def writeMatrixToCSV(matrix: Array[Array[Double]], pwmatrix: FileWriter): Unit = {
+
+      for (i <- Range(0, matrix.length)) {
+        for (j <- Range(0, matrix(0).length)) {
+
+          pwmatrix.write(i.toString + "," +  j.toString + "," + matrix(i)(j))
+          pwmatrix.write("\n")
+        }
+      }
+    }
+
+
+// Netzwerk Vorbereitung: -----------------------------
 // Korrelationswerte berechnen und schreiben
     var meansList = List[Double]()
     var varianceList = List[Double]()
@@ -169,37 +304,8 @@ object Pipeline {
     pw_matrix.close()
     pw_nodes_file.close()
 
+    //----------------------------------------------
 
-    // SVM
-    val svmData: DataSet[LabeledVector] = MLUtils.readLibSVM(env ,outputPath_SVM)
-
-    val svm = SVM()
-      .setBlocks(env.getParallelism)
-      .setIterations(100)
-      .setRegularization(0.001)
-      .setStepsize(0.1)
-      .setSeed(42)
-
-    svm.fit(svmData)
-    val f = svm.weightsOption
-    //println(f.get.collect())
-    val weights = f.get.collect()
-    //println(weights.toList.sortWith(_.valueAt(0) < _.valueAt(0)))
-    val weightslist = weights.toList
-
-
-    var product = (weightslist.map(c => c), countslist_test.map(c => c.toDouble)).zipped.map((c1, c2) => c1 * c2).toArray
-    println(product)
-
-    //println( product.toList)
-    // Skalarprodukt von zwei Listen
-    /*val testlist = List(1,2,3,4,5)
-    val testlist2 = List(5,6,7,8,9)
-    val product = (testlist2, testlist).zipped.map((c1,c2) => c1*c2)
-    print(product.sum)*/
-
-
-    //env.execute("Pipeline")
 
 
 
