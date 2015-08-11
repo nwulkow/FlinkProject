@@ -20,6 +20,9 @@ package de.fuberlin.de.largedataanalysis
 
 import java.io.{FileWriter, File}
 
+import scala.reflect.io.Path
+
+//import com.github.projectflink.common.als.ALSUtils
 import org.apache.commons.io.FileUtils
 import org.apache.commons.math.linear.{MatrixUtils, BigMatrix}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
@@ -29,49 +32,69 @@ import org.apache.flink.ml.classification.SVM
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import scala.io.Source
-
+import java.io._
 
 object Pipeline {
 
+
+  val env = ExecutionEnvironment.getExecutionEnvironment
+  var matrixaslist = List[List[Double]]()
+
+
   def main(args: Array[String]) {
 
+    if (!parseParameters(args)) {
+      return
+    }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val outputpath: Path = Path(path + "/Output")
+    outputpath.createDirectory()
+
+
+    val outputPath_SVM = path + "/Output/svmvectors"
+    val pw = new FileWriter(new File(outputPath_SVM))
+
     // PFAD zu den Dateien, (also nicht zu einem einzelnen File!)
-    val path_healthy = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Healthy"
-    val path_diseased = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Diseased"
+    val path_healthy = path + "/Healthy"
+    val path_diseased = path + "/Diseased"
 
 
     // Pfade und FileWriter für einige temporäre Dateien:
     // SVM-File, Netzwerkmatrix,Knoten des Netzwerkes, unvollständige Matrix,
-    import java.io._
-    val outputPath_SVM: String = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/svmvectors"
-    val outputPath_Matrix: String = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/matrix"
-    val nodes_file_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/PRBNodes"
-    val incompletematrix_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/matrix_tocomplete"
+    val outputPath_Matrix: String = path + "/Output/matrix"
+    val nodes_file_path = path + "/Output/PRBNodes"
+    val incompletematrix_path = path + "/Output/matrix_tocomplete"
+    val resultlabels_path = path + "/Output/labels"
 
-    val pw = new FileWriter(new File(outputPath_SVM), true)
-    val pw_matrix = new FileWriter(new File(outputPath_Matrix), true)
-    val pw_nodes_file = new FileWriter(new File(nodes_file_path), true)
-    val pw_incompletematrix = new FileWriter(new File(incompletematrix_path), true)
+    val network_matrix_healthy_path = path + "/Output/network_matrix_healthy"
+    val network_matrix_diseased_path = path + "/Output/network_matrix_diseased"
+    val network_nodes_healthy_path = path + "/Output/network_nodes_healthy"
+    val network_nodes_diseased_path = path + "/Output/network_nodes_diseased"
+    val network_gdf_healthy = path + "/Output/gdf_healthy"
+    val network_gdf_diseased = path + "/Output/gdf_diseased"
+
+    val pw_incompletematrix = new FileWriter(new File(incompletematrix_path))
+    val pw_resultlabels = new FileWriter(new File(resultlabels_path))
 
 
 
     // Matrix mit den Werten. Reihen sind die verschiedenen Personen, Spalten die Genecounts
-    var matrixaslist = List[List[Double]]()
+    val numberHealthy = getListOfFiles(path_healthy).length
+    val numberDiseased = getListOfFiles(path_diseased).length
+    val matrixAndGenes = matrixCreation(Array[String](path_healthy, path_diseased), pw_incompletematrix)
+    val incompleteMatrix = matrixAndGenes._1
+    val allGenes = matrixAndGenes._2
 
-    val testpath = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Test"
-    val incompletematrix =  matrixCreation(testpath)
-    writeMatrixToCSV(incompletematrix, pw_incompletematrix)
     //
     // Hier die Matrix Completion mit ALS Join. Inputratings = incompletematrix_path
     // resultmatrix = ALSJoin(...)
     //
-    preprocessdata(path_healthy,1)
-    preprocessdata(path_diseased,-1)
+
+    preprocessdataFromMatrix(incompleteMatrix, numberHealthy, pw)
+
 
     // SVM
-    val svmData: DataSet[LabeledVector] = MLUtils.readLibSVM(env ,outputPath_SVM)
+    val svmData: DataSet[LabeledVector] = MLUtils.readLibSVM(env, outputPath_SVM)
 
     val svm = SVM()
       .setBlocks(env.getParallelism)
@@ -80,144 +103,270 @@ object Pipeline {
       .setStepsize(0.1)
       .setSeed(42)
 
+    /*val f = svm.weightsOption
     svm.fit(svmData)
-    val f = svm.weightsOption
     val weights = f.get.collect()
-    val weightslist = weights.toList
+    val weightsList = weights.toList
+
 
     // Testen des classifiers
-    val testperson_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Healthy/TCGA-E2-A1BC-01A-11R-A12O-13.mirna.quantification.txt"
-    val testperson_counts: List[Double] = readOnePersonsData(testperson_path)._1
+    // ------------
 
-    val product = (weightslist(0).toArray, testperson_counts).zipped.map((c1, c2) => c1 * c2).toArray
-    println(product.sum)
+    val files = getListOfFiles(testFiles_path)
+    val scalarproducts = new Array[Double](files.length)
+    for (k <- Range(0, files.length)) {
 
+      val current_testperson = testFiles_path + "/" + files(k).getName
+      val testperson_data = readOnePersonsData(current_testperson)
+      val testperson_counts = testperson_data._1
+      val testperson_genes = testperson_data._2
 
-    def preprocessdata(path: String, label: Int) {
+      val extended_testperson_counts = new Array[Double](allGenes.length)
 
-
-      val files = getListOfFiles(path)
-      for (k <- Range(0, files.length)) {
-
-
-        // Aktuelles File
-        val path_short = path + "/" + files(k).getName
-
-        val array = readOnePersonsData(path_short)._1
-
-
-        //----------------
-        val dv = DenseVector(array.toArray)
-
-        val lv = LabeledVector(label, dv)
-
-        // geneMatrix füllen
-        matrixaslist = array.toList :: matrixaslist
-
-        pw.write(lv.label.toInt + " ")
-        for (j <- Range(0, lv.vector.size)) {
-          pw.write((j + 1) + ":" + lv.vector(j) + " ")
+      for (j <- Range(0, allGenes.length)) {
+        if (testperson_genes.contains(allGenes(j))) {
+          val index = testperson_genes.indexOf(allGenes(j))
+          extended_testperson_counts(j) = testperson_counts(index)
         }
-        pw.write("\n")
+        else {
+          extended_testperson_counts(j) = 0
+        }
+      }
 
+      val product = (weightsList(0).toArray, extended_testperson_counts).zipped.map((c1, c2) => c1 * c2).sum
+      scalarproducts(k) = product
+      println("counts: " + extended_testperson_counts.toVector)
+
+      var HealthyOrDiseased = "Healthy"
+      if (product < 0) HealthyOrDiseased = "Diseased"
+      pw_resultlabels.write(HealthyOrDiseased + " : " + files(k).getName + ", " + product)
+      pw_resultlabels.write("\n")
+    }
+    pw_resultlabels.close()
+    // --------------
+    for (s <- scalarproducts) {
+      println("scalarproduct = " + s.toString)
+    }
+    println(allGenes)
+
+
+    val numberOfTopGenes = 10
+    // Höchste Gewichte
+    val sortedweights = weightsList(0).toArray.sorted
+    var topPositiveWeights = List[(String, Double)]()
+    var topNegativeWeights = List[(String, Double)]()
+    for (k <- Range(0, numberOfTopGenes)) {
+      var correspondingGeneIndex = weightsList(0).toArray.indexOf(sortedweights(k))
+      topNegativeWeights ::=(allGenes(correspondingGeneIndex), sortedweights(k))
+      correspondingGeneIndex = weightsList(0).toArray.indexOf(sortedweights(allGenes.length - 1 - k))
+      topPositiveWeights ::=(allGenes(correspondingGeneIndex), sortedweights(allGenes.length - 1 - k))
+    }
+    println(topNegativeWeights.reverse)
+    println(topPositiveWeights.reverse)
+*/
+
+
+    // Netzwerk Vorbereitung: -----------------------------
+    // Korrelationswerte berechnen und schreiben
+    // Für Gesunde:
+
+    var (matrixaslistHealthy, matrixaslistDiseased) = matrixaslist.splitAt(numberHealthy)
+    doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy)
+    doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased)
+
+    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path: String) {
+
+      var meansList = List[Double]()
+      var varianceList = List[Double]()
+      val noGenes = matrixaslist(0).length
+      var matrixaslistTranspose = matrixaslist.transpose
+      val noPeople = matrixaslistTranspose(0).length
+
+      val pw_matrix = new FileWriter(path_matrix)
+      val pw_nodes_file = new FileWriter(path_nodes)
+
+    var network = List[Array[Double]]() // Netzwerk wird gespeichert, um später ein GDF-File zu erzeugen
+
+
+    for (j <- Range(0, noGenes)) {
+      meansList = meanOfArray(matrixaslistTranspose(j)) :: meansList
+      varianceList = variance(matrixaslistTranspose(j)) :: varianceList
+    }
+    val threshold = 0.8
+    for (j <- Range(0, noGenes)) {
+      pw_nodes_file.write(j.toString)
+      pw_nodes_file.write("\n")
+
+      for (h <- Range(j, noGenes)) {
+        if (threshold < Math.abs(correlationcoefficient(matrixaslistTranspose(j), matrixaslistTranspose(h)))) {
+          pw_matrix.write(j.toString + " " + h.toString)
+          pw_matrix.write("\n")
+          network = Array[Double](j, h) :: network
+        }
       }
     }
+      // FileWriter schließen
+      pw_matrix.close()
+      pw_nodes_file.close()
+    val pageranks = PageRankBasicForPipeline.executePRB(nodes_file_path, outputPath_Matrix, "", matrixaslistTranspose(0).length)
+    val pageranks_list = pageranks.collect().toList
+    //println(pageranks.collect())
 
-    def preprocessdataFromMatrix(matrix: Array[Array[Double]], label: Int) {
+    // Ein GDF-File schreiben mit dem Netzwerk und den PageRankBasic-Werten
+    //val gdf_path = path + "/Output/gdfFile.gdf"
+    writeGDFFile(network, pageranks, gdf_path)
 
 
-      for (k <- Range(0, matrix.length)) {
+
+  }
 
 
-        val array = matrix(0)
+    //----------------------------------------------
 
 
-        val dv = DenseVector(array.toArray)
 
-        val lv = LabeledVector(label, dv)
+  }
 
-        // geneMatrix füllen
-        matrixaslist = array.toList :: matrixaslist
 
-        pw.write(lv.label.toInt + " ")
-        for (j <- Range(0, lv.vector.size)) {
-          pw.write((j + 1) + ":" + lv.vector(j) + " ")
-        }
-        pw.write("\n")
 
+  def preprocessdata(path: String, label: Int, pw: FileWriter) {
+
+
+    val files = getListOfFiles(path)
+    for (k <- Range(0, files.length)) {
+
+
+      // Aktuelles File
+      val path_short = path + "/" + files(k).getName
+
+      val array = readOnePersonsData(path_short)._1
+
+
+      //----------------
+      val dv = DenseVector(array.toArray)
+
+      val lv = LabeledVector(label, dv)
+
+      // geneMatrix füllen
+      matrixaslist = array.toList :: matrixaslist
+
+      pw.write(lv.label.toInt + " ")
+      for (j <- Range(0, lv.vector.size)) {
+        pw.write((j + 1) + ":" + lv.vector(j) + " ")
       }
+      pw.write("\n")
+
+    }
+    pw.close()
+  }
+
+  def preprocessdataFromMatrix(matrix: Array[Array[Double]], numberHealthy: Int, pw: FileWriter) {
+
+    var label = 1
+
+    for (k <- Range(0, matrix.length)) {
+
+      if( k > numberHealthy) label = -1
+
+
+      val array = matrix(k)
+
+      val dv = DenseVector(array.toArray)
+
+      val lv = LabeledVector(label, dv)
+      // geneMatrix füllen
+      matrixaslist = array.toList :: matrixaslist
+      pw.write(lv.label.toInt + " ")
+      for (j <- Range(0, lv.vector.size)) {
+        pw.write((j + 1) + ":" + lv.vector(j) + " ")
+      }
+      pw.write("\n")
+
+    }
+    pw.close()
+  }
+
+
+  def readOnePersonsData(path: String): (List[Double],List[String]) = {
+
+    val text = Source.fromFile(path).getLines().toList
+    val firstline = text(0)
+    val columns = firstline.split("\t")
+
+    val nameindex = 0
+    var countindex = 1
+    for (i <- Range(0, columns.length)) {
+      if (columns(i) == "reads_per_million_miRNA_mapped")
+        countindex = i
     }
 
+    var data = readmiRNA(env, path, Array(nameindex, countindex))
+    // Bestimmte Gene ausschließen
+    for (gene <- excludesGenes) {
+      data = data.filter { c => c.ID.equals(gene) == false }
+    }
+    val tuples = data.collect()
+    var countslist = List[Double]()
+    var genelist = List[String]()
 
-     def readOnePersonsData(path: String): (List[Double],List[String]) = {
+    //Ich übertrage hier einzeln die Werte aus dem DataSet in Listen. Der Grund ist, dass der
+    // collect-Befehl für DataSets die Daten umordnet, was sehr ärgerlich ist
+    var j = 0
+    while (j < tuples.length){
+      if (tuples(j).count.contains("reads") == false) {
+        genelist = tuples(j).ID :: genelist
+        countslist = tuples(j).count.toDouble :: countslist
+      }
+      j = j + 1
+    }
+    // Die Gene counts in eine List umwandeln
+    /*var CountsDataSet = data.map(c => c.count)
+    CountsDataSet = CountsDataSet.filter { line => line.contains("reads") == false }
+    countslist_test = CountsDataSet.map(c => c.toDouble).collect().toList
 
-       val text = Source.fromFile(path).getLines().toList
-       val firstline = text(0)
-       val columns = firstline.split("\t")
+    val counts = CountsDataSet.collect()
+    //val countslist = counts.toList
 
-       val nameindex = 0
-       var countindex = 1
-       for (i <- Range(0, columns.length)) {
-         if (columns(i) == "reads_per_million_miRNA_mapped")
-           countindex = i
-       }
+    val IDsDataSet = data.map(c => c.ID).filter { line => line.contains("ID") == false }
+    val ids = IDsDataSet.collect()
+    //genelist = ids.toList*/
 
-       val data = readmiRNA(env, path, Array(nameindex, countindex))
-       val tuples = data.collect()
-       var countslist = List[Double]()
-       var genelist = List[String]()
-
-       //Ich übertrage hier einzeln die Werte aus dem DataSet in Listen. Der Grund ist, dass der
-       // collect-Befehl für DataSets die Daten umordnet, was sehr ärgerlich ist
-       var j = 0
-       while (j < tuples.length){
-         if (tuples(j).count.contains("reads") == false) {
-           genelist = tuples(j).ID :: genelist
-           countslist = tuples(j).count.toDouble :: countslist
-         }
-         j = j + 1
-       }
-
-       // Die Gene counts in eine List umwandeln
-       /*var CountsDataSet = data.map(c => c.count)
-       CountsDataSet = CountsDataSet.filter { line => line.contains("reads") == false }
-       countslist_test = CountsDataSet.map(c => c.toDouble).collect().toList
-
-       val counts = CountsDataSet.collect()
-       //val countslist = counts.toList
-
-       val IDsDataSet = data.map(c => c.ID).filter { line => line.contains("ID") == false }
-       val ids = IDsDataSet.collect()
-       //genelist = ids.toList*/
-
-      return (countslist , genelist)
-     }
+    return (countslist , genelist)
+  }
 
 
-    def matrixCreation(path: String): Array[Array[Double]] =  {
+  def matrixCreation(path_list: Array[String], pwmatrix: FileWriter): (Array[Array[Double]],List[String], Array[Double]) =  {
+
+    var allCounts = List[List[Double]]()
+    var allGenes = List[List[String]]()
+    var uniqueGenes = List[String]()
+    var labels = List[Double]()
+
+    var numberOfFiles = 0
+
+    for (path <- path_list) {
 
       val files = getListOfFiles(path)
-
-      var allCounts = List[List[Double]]()
-      var allGenes = List[List[String]]()
-      var uniqueGenes = List[String]()
-
 
       for (i <- Range(0, files.length)) {
-
         val path_short = path + "/" + files(i).getName
         val temp_lists = readOnePersonsData(path_short)
         uniqueGenes = uniqueGenes ::: temp_lists._2 distinct;
         allGenes = allGenes :+ temp_lists._2
-        allCounts =  allCounts :+ temp_lists._1.toList
+        allCounts = allCounts :+ temp_lists._1.toList
+        numberOfFiles += 1
       }
-
+    }
       // 'uniqueGenes'enthält alle Gene, die in mindestens einem File vorkommen, genau ein Mal
+    val matrix = Array.ofDim[Double](numberOfFiles, uniqueGenes.length)
+    var allstrings = allGenes(0)
 
-      var matrix = Array.ofDim[Double](files.length,uniqueGenes.length)
+    var label = 1
+    var rownumber = 0
 
-      var allstrings = allGenes(0)
+    for (path <- path_list) {
 
+      val files = getListOfFiles(path)
 
       for (j <- Range(0, allstrings.length)) {
         matrix(0)(j) = allCounts(0)(j)
@@ -231,89 +380,52 @@ object Pipeline {
         for (j <- Range(0, allstrings.length)) {
           if (currentgenes.contains(allstrings(j))) {
             val index = currentgenes.indexOf(allstrings(j))
-            matrix(1)(j) = currentcounts(index)
+            matrix(rownumber)(j) = currentcounts(index)
+
+            pwmatrix.write(k.toString + "," +  j.toString + "," + matrix(k)(j))
+            pwmatrix.write("\n")
           }
           else {
-            matrix(1)(j) = 0
+            matrix(k)(j) = 0
           }
         }
+        rownumber += 1
+        labels = label :: labels
       }
-
-      for (i <- Range(0, matrix.length)) {
-        for (j <- Range(0, matrix(0).length)) {
-
-          print(matrix(i)(j) + "  ")
-        }
-        println()
-      }
-    println(allstrings)
-
-    return matrix
+      label = -1
     }
 
-    def writeMatrixToCSV(matrix: Array[Array[Double]], pwmatrix: FileWriter): Unit = {
-
-      for (i <- Range(0, matrix.length)) {
-        for (j <- Range(0, matrix(0).length)) {
-
-          pwmatrix.write(i.toString + "," +  j.toString + "," + matrix(i)(j))
-          pwmatrix.write("\n")
-        }
-      }
-    }
-
-
-// Netzwerk Vorbereitung: -----------------------------
-// Korrelationswerte berechnen und schreiben
-    var meansList = List[Double]()
-    var varianceList = List[Double]()
-    val noGenes = matrixaslist(0).length
-    matrixaslist = matrixaslist.transpose
-    val noPeople = matrixaslist(0).length
-
-    var network = List[Array[Double]]() // Netzwerk wird gespeichert um später ein GDF-File zu erzeugen
-
-
-    for (j <- Range(0, noGenes)) {
-      meansList = meanOfArray(matrixaslist(j)) :: meansList
-      varianceList = variance(matrixaslist(j)) :: varianceList
-    }
-    val threshold = 0.8
-    for (j <- Range(0, noGenes)) {
-      pw_nodes_file.write(j.toString)
-      pw_nodes_file.write("\n")
-
-      for (h <- Range(j, noGenes)) {
-        if(threshold < Math.abs(correlationcoefficient(matrixaslist(j), matrixaslist(h))) ){
-          pw_matrix.write(j.toString + " " + h.toString)
-          pw_matrix.write("\n")
-          network = Array[Double](j,h) :: network
-        }
-      }
-    }
-
-    val pageranks = PageRankBasicForPipeline.executePRB(nodes_file_path, outputPath_Matrix, "", matrixaslist(0).length)
-    //println(pageranks.collect())
-
-    // Ein GDF-File schreiben mit dem Netzwerk und den PageRankBasic-Werten
-    val gdf_path = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/Output/gdfFile.gdf"
-    writeGDFFile(network, pageranks,gdf_path)
-
-    // FileWriter schließen
-    pw.close()
-    pw_matrix.close()
-    pw_nodes_file.close()
-
-    //----------------------------------------------
-
-
-
-
-
-
-
+    return (matrix, allstrings, labels.toArray)
   }
 
+
+  def writeMatrixToCSV(matrix: Array[Array[Double]], pwmatrix: FileWriter): Unit = {
+
+    for (i <- Range(0, matrix.length)) {
+      for (j <- Range(0, matrix(0).length)) {
+
+        pwmatrix.write(i.toString + "," +  j.toString + "," + matrix(i)(j))
+        pwmatrix.write("\n")
+      }
+    }
+  }
+
+// ------------------------------
+
+  private var path = ""
+  private var excludesGenes: Array[String] = null
+  private var testFiles_path = ""
+  private def parseParameters(args: Array[String]): Boolean = {
+    if (args.length > 0) {
+      path = args(0)
+      excludesGenes = args(1).split(",")
+      testFiles_path = args(2)
+      true
+    } else {
+
+      false
+    }
+  }
 
 
   case class GeneData(ID: String, count: String)
