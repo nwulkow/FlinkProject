@@ -22,7 +22,13 @@ import java.io.{FileWriter, File}
 
 import scala.reflect.io.Path
 
-//import com.github.projectflink.common.als.ALSUtils
+import com.github.projectflink.als.ALSJoin
+import com.github.projectflink.common.als.{ALSUtils, Factors, Rating}
+import com.github.projectflink.util.FlinkTools
+import org.apache.flink.api.scala._
+import org.apache.flink.util.Collector
+import org.jblas.{Solve, SimpleBlas, FloatMatrix}
+
 import org.apache.commons.io.FileUtils
 import org.apache.commons.math.linear.{MatrixUtils, BigMatrix}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
@@ -90,6 +96,8 @@ object Pipeline {
     // resultmatrix = ALSJoin(...)
     //
 
+    ALSJoin.doMatrixCompletion(incompletematrix_path,10,100,42,Some("dummy string"),path,allGenes.length, allGenes.length)
+
     preprocessdataFromMatrix(incompleteMatrix, numberHealthy, pw)
 
 
@@ -103,8 +111,8 @@ object Pipeline {
       .setStepsize(0.1)
       .setSeed(42)
 
-    /*val f = svm.weightsOption
     svm.fit(svmData)
+    val f = svm.weightsOption
     val weights = f.get.collect()
     val weightsList = weights.toList
 
@@ -135,7 +143,6 @@ object Pipeline {
 
       val product = (weightsList(0).toArray, extended_testperson_counts).zipped.map((c1, c2) => c1 * c2).sum
       scalarproducts(k) = product
-      println("counts: " + extended_testperson_counts.toVector)
 
       var HealthyOrDiseased = "Healthy"
       if (product < 0) HealthyOrDiseased = "Diseased"
@@ -147,7 +154,6 @@ object Pipeline {
     for (s <- scalarproducts) {
       println("scalarproduct = " + s.toString)
     }
-    println(allGenes)
 
 
     val numberOfTopGenes = 10
@@ -163,7 +169,7 @@ object Pipeline {
     }
     println(topNegativeWeights.reverse)
     println(topPositiveWeights.reverse)
-*/
+
 
 
     // Netzwerk Vorbereitung: -----------------------------
@@ -214,7 +220,7 @@ object Pipeline {
 
     // Ein GDF-File schreiben mit dem Netzwerk und den PageRankBasic-Werten
     //val gdf_path = path + "/Output/gdfFile.gdf"
-    writeGDFFile(network, pageranks, gdf_path)
+    writeGDFFile(network, pageranks,allGenes, gdf_path)
 
 
 
@@ -368,25 +374,30 @@ object Pipeline {
 
       val files = getListOfFiles(path)
 
-      for (j <- Range(0, allstrings.length)) {
-        matrix(0)(j) = allCounts(0)(j)
+      if ( label == 1) {
+        for (j <- Range(0, allstrings.length)) {
+          matrix(rownumber)(j) = allCounts(rownumber)(j)
+          pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
+          pwmatrix.write("\n")
+        }
+        rownumber += 1
       }
 
       for (k <- Range(1, files.length)) {
-        allstrings = allstrings ::: allGenes(k) distinct;
-        val currentgenes = allGenes(k)
-        val currentcounts = allCounts(k)
+        allstrings = allstrings ::: allGenes(rownumber) distinct;
+        val currentgenes = allGenes(rownumber)
+        val currentcounts = allCounts(rownumber)
 
         for (j <- Range(0, allstrings.length)) {
           if (currentgenes.contains(allstrings(j))) {
             val index = currentgenes.indexOf(allstrings(j))
             matrix(rownumber)(j) = currentcounts(index)
 
-            pwmatrix.write(k.toString + "," +  j.toString + "," + matrix(k)(j))
+            pwmatrix.write((rownumber+1).toString + "," +  (j+1).toString + "," + matrix(rownumber)(j))
             pwmatrix.write("\n")
           }
           else {
-            matrix(k)(j) = 0
+            matrix(rownumber)(j) = 0
           }
         }
         rownumber += 1
@@ -394,6 +405,8 @@ object Pipeline {
       }
       label = -1
     }
+
+    pwmatrix.close()
 
     return (matrix, allstrings, labels.toArray)
   }
@@ -529,15 +542,15 @@ object Pipeline {
 
 
 
-  def writeGDFFile(network: List[Array[Double]], ranks: DataSet[Double], gdfpath: String) {
+  def writeGDFFile(network: List[Array[Double]], ranks: DataSet[Double],allGenes: List[String], gdfpath: String) {
 
     val gdf_file = new FileWriter(new File(gdfpath), true)
-
-    gdf_file.write("nodedef>name VARCHAR, rank DOUBLE")
+    println("bin jetzt hier")
+    gdf_file.write("nodedef>name VARCHAR, rank DOUBLE, label VARCHAR")
     gdf_file.write("\n")
     val rankscollect = ranks.collect()
     for (j <- Range(0, rankscollect.length)) {
-      gdf_file.write(j.toString + "," +  rankscollect(j).toString)
+      gdf_file.write(j.toString + "," +  rankscollect(j).toString + "," + allGenes(j))
       gdf_file.write("\n")
     }
     gdf_file.write("edgedef>node1 VARCHAR, node2 VARCHAR")
