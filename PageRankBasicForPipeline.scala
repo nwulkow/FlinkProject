@@ -53,18 +53,18 @@ object PageRankBasicForPipeline {
 
   private final val DAMPENING_FACTOR: Double = 0.85
   private final val EPSILON: Double = 0.0001
+  private final val maxIterations = 100
 
-  def executePRB(pagesInputPath: String,linksInputPath : String,outputPath: String, numPages: Int): DataSet[Double] =  {
+  def executePRB(pagesInputPath: String,linksInputPath : String,outputPath: String, numPages: Int): DataSet[Page] =  {
 
-    maxIterations = 100
 
     fileOutput = true
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     // read input data
-    val pages = getPagesDataSet(env)
-    val links = getLinksDataSet(env)
+    val pages = getPagesDataSet(env, pagesInputPath)
+    val links = getLinksDataSet(env, linksInputPath)
 
     // assign initial ranks to pages
     val pagesWithRanks = pages.map(p => Page(p, 1.0 / numPages)).withForwardedFields("*->pageId")
@@ -107,7 +107,6 @@ object PageRankBasicForPipeline {
     }
 
     val result = finalRanks
-
     // emit result
     if (outputPath != "") {
       result.writeAsCsv(outputPath, "\n", " ")
@@ -117,7 +116,8 @@ object PageRankBasicForPipeline {
       result.print()
     }
 
-    return result.map(c => c.rank)
+
+    return result
   }
 
   // *************************************************************************
@@ -134,38 +134,8 @@ object PageRankBasicForPipeline {
   //     UTIL METHODS
   // *************************************************************************
 
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      fileOutput = true
-      if (args.length == 5) {
-        pagesInputPath = args(0)
-        linksInputPath = args(1)
-        outputPath = args(2)
-        numPages = args(3).toLong
-        maxIterations = args(4).toInt
 
-        true
-      } else {
-        System.err.println("Usage: PageRankBasic <pages path> <links path> <output path> <num " +
-          "pages> <num iterations>")
-
-        false
-      }
-    } else {
-      System.out.println("Executing PageRank Basic example with default parameters and built-in " +
-        "default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  Usage: PageRankBasic <pages path> <links path> <output path> <num " +
-        "pages> <num iterations>")
-
-      numPages = PageRankData.getNumberOfPages
-
-      true
-    }
-  }
-
-  private def getPagesDataSet(env: ExecutionEnvironment): DataSet[Long] = {
+  private def getPagesDataSet(env: ExecutionEnvironment, pagesInputPath: String): DataSet[Long] = {
     if (fileOutput) {
       env.readCsvFile[Tuple1[Long]](pagesInputPath, fieldDelimiter = " ", lineDelimiter = "\n")
         .map(x => x._1)
@@ -174,9 +144,9 @@ object PageRankBasicForPipeline {
     }
   }
 
-  private def getLinksDataSet(env: ExecutionEnvironment): DataSet[Link] = {
+  private def getLinksDataSet(env: ExecutionEnvironment, linksInputPath: String): DataSet[Link] = {
     if (fileOutput) {
-      env.readCsvFile[Link](linksInputPath, fieldDelimiter = ";",
+      env.readCsvFile[Link](linksInputPath, fieldDelimiter = " ",
         includedFields = Array(0, 1))
     } else {
       val edges = PageRankData.EDGES.map { case Array(v1, v2) => Link(v1.asInstanceOf[Long],
@@ -186,11 +156,7 @@ object PageRankBasicForPipeline {
   }
 
   private var fileOutput: Boolean = false
-  private var pagesInputPath: String = "/home/mi/nwulkow/ADL/Data/short_nodes_for_PRB"
-  private var linksInputPath: String = "/home/mi/nwulkow/ADL/Data/short_edgesints"
-  private var outputPath: String = "/home/mi/nwulkow/ADL/Data/short_PRB_output"
-  private var numPages: Long = 559
-  private var maxIterations: Int = 100
+
 
 }
 
