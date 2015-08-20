@@ -3,8 +3,9 @@ package de.fuberlin.de.largedataanalysis
 
 
 import java.io.{File, FileWriter}
-
+import PageRankBasicForPipeline.Page
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.graph.Vertex
 
 
 object StatisticsMethods {
@@ -87,14 +88,15 @@ object StatisticsMethods {
 
 
 
-  def writeGDFFile(network: List[Array[Double]], ranks: DataSet[Double],allGenes: List[String], gdfpath: String) {
+  def writeGDFFile_Pagerank(network: List[Array[Double]], ranks: DataSet[Page],allGenes: List[String], gdfpath: String) {
 
-    val gdf_file = new FileWriter(new File(gdfpath), true)
+    val gdf_file = new FileWriter(new File(gdfpath))
     gdf_file.write("nodedef>name VARCHAR, rank DOUBLE, label VARCHAR")
     gdf_file.write("\n")
     val rankscollect = ranks.collect()
-    for (j <- Range(0, rankscollect.length)) {
-      gdf_file.write(j.toString + "," +  rankscollect(j).toString + "," + allGenes(j))
+
+    for (page <- rankscollect) {
+      gdf_file.write(page.pageId + "," +  page.rank + "," + allGenes(page.pageId.toInt - 1))
       gdf_file.write("\n")
     }
     gdf_file.write("edgedef>node1 VARCHAR, node2 VARCHAR")
@@ -108,4 +110,28 @@ object StatisticsMethods {
     gdf_file.close()
 
   }
+
+  def writeGDFFile_Cluster(network: List[Array[Double]], clusters: DataSet[Vertex[Long, Long]], allGenes: List[String], gdfpath: String) {
+
+    val gdf_file = new FileWriter(new File(gdfpath))
+    gdf_file.write("nodedef>name VARCHAR, cluster DOUBLE, label VARCHAR")
+    gdf_file.write("\n")
+    val clusterscollect = clusters.collect()
+
+    for (node <- clusterscollect) {
+      gdf_file.write(node.getId + "," +  node.getValue + "," + allGenes(node.getId.toInt - 1))
+      gdf_file.write("\n")
+    }
+    gdf_file.write("edgedef>node1 VARCHAR, node2 VARCHAR")
+    gdf_file.write("\n")
+    for (i <- Range(0, network.length)) {
+      val current = network(i)
+      gdf_file.write(current(0).toInt + "," +  current(1).toInt)
+      gdf_file.write("\n")
+    }
+
+    gdf_file.close()
+
+  }
+
 }
