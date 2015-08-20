@@ -20,6 +20,26 @@ object Tools {
     }
   }
 
+  def printMatrix(matrix: Array[Array[Double]]){
+    for (i <- Range(0,matrix.length)) {
+      for (j <- Range(0, matrix(0).length)) {
+
+        print(matrix(i)(j) + "  ")
+      }
+      println()
+    }
+  }
+
+  def writeGenesWithWeights(genesWithWeights: List[(String,Double)], filename: String) {
+
+    val writer = new FileWriter(new File(filename))
+    for (gww <- genesWithWeights) {
+      writer.write(gww._2.toString + " , " + gww._1)
+      writer.write("\n")
+    }
+    writer.close()
+  }
+
 
   def getListOfFiles(dir: String):List[File] = {
     val d = new File(dir)
@@ -31,7 +51,7 @@ object Tools {
   }
 
 
-  def mergeCountLists(counts: List[Double], genes: List[String], allGenes: List[String]): Array[Double] ={
+  def mergeCountLists(counts: List[Double], genes: List[String], allGenes: List[String]): Array[Double] = {
 
     val extended_testperson_counts = new Array[Double](allGenes.length)
 
