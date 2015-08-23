@@ -4,6 +4,7 @@ import java.io.{File, FileWriter}
 
 import breeze.linalg.{DenseMatrix, DenseVector}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment, _}
+import PageRankBasicForPipeline.Page
 import org.apache.flink.graph.Vertex
 import org.apache.flink.ml.MLUtils
 import org.apache.flink.ml.classification.SVM
@@ -68,7 +69,6 @@ object Pipeline {
     val pw_resultlabels = new FileWriter(new File(resultlabels_path))
 
     // -------------------------------------------------------
-
     // Vorbereitung der Matrix Completion. Reihen sind die verschiedenen Personen, Spalten die Genecounts
     val numberHealthy = Tools.getListOfFiles(path_healthy).length
     val numberDiseased = Tools.getListOfFiles(path_diseased).length
@@ -93,9 +93,10 @@ object Pipeline {
     val eigs = breeze.linalg.eig(densematrix)
     //println(eigs.eigenvalues + "EIGENVALUES")
     */
-    incompleteMatrix = ALSJoin.doMatrixCompletion(incompletematrix_path, 10, 100, 42, Some("dummy string"), path, numberPeople, numberGenes)
+    //incompleteMatrix = ALSJoin.doMatrixCompletion(incompletematrix_path, 10, 100, 42, Some("dummy string"), path, numberPeople, numberGenes)
 
     // Die Zeilen der vervollständigten Matrix umwandeln in 'LabeledVectors'
+    println(""+ incompleteMatrix(incompleteMatrix.length - 1).toList)
     matrixaslist = PreprocessingMethods.preprocessdataFromMatrix(incompleteMatrix, numberHealthy, pw, matrixaslist)
 
     // -------------------------------------------------------
@@ -186,11 +187,8 @@ object Pipeline {
     // Netzwerk Vorbereitung:
     // Korrelationswerte berechnen und schreiben
 
-    var (matrixaslistHealthy, matrixaslistDiseased) = matrixaslist.splitAt(numberHealthy)
-    doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy, cluster_gdf_healthy)
-    doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased, cluster_gdf_diseased)
 
-    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path_ranks: String, gdf_path_cluster: String) {
+    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path_ranks: String, gdf_path_cluster: String): DataSet[Page] =  {
 
       var meansList = List[Double]()
       var varianceList = List[Double]()
@@ -212,7 +210,8 @@ object Pipeline {
       val threshold = 0.8 // Threshold
 
       for (j <- Range(0, noGenes)) {
-        pw_nodes_file.write((j+1).toString + " " +  ((j+1)*1000000).toString)
+        println("j = " + j)
+        pw_nodes_file.write((j+1).toString + " " +  ((j+1)).toString)
         pw_nodes_file.write("\n")
 
         for (h <- Range(j, noGenes)) {
@@ -229,16 +228,29 @@ object Pipeline {
       // FileWriter schließen
       pw_matrix.close()
       pw_nodes_file.close()
+      println("vor PRB")
       val pageranks = PageRankBasicForPipeline.executePRB(path_nodes, path_matrix, "", numberGenes)
      // Ein GDF-File schreiben mit dem Netzwerk und den PageRankBasic-Werten
+      println(" jetzt nach PRB")
       StatisticsMethods.writeGDFFile_Pagerank(network, pageranks, allGenes, gdf_path_ranks)
-
+      println("nach GDF")
 
       // Community Detection Algorithm. Ordnet die einzelnen Gene Clustern zu
       val clusters =  GellyAPI_clean.doClusterDetection(network_nodes_healthy_path, network_matrix_healthy_path, cluster_file_path)
+      println("nach Cluster Det")
       GellyAPI_clean.writeGDFFile_Clusters(path_matrix,clusters, allGenes_string, gdf_path_cluster)
-
+      println("nach GDF Cluster")
+      return pageranks
     }
+
+
+    var (matrixaslistHealthy, matrixaslistDiseased) = matrixaslist.splitAt(numberHealthy)
+    val pageranks_healthy =  doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy, cluster_gdf_healthy)
+    val pageranks_diseased =  doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased, cluster_gdf_diseased)
+
+
+    StatisticsMethods.rank_differences(pageranks_healthy,pageranks_diseased, allGenes)
+
 
 
 
