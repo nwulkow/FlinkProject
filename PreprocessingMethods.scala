@@ -56,19 +56,19 @@ object PreprocessingMethods {
     var matrixaslist = matrixaslist_copy
     for (k <- Range(0, matrix.length)) {
 
-      if( k > numberHealthy) label = -1
+      if( k >= numberHealthy) label = -1
 
 
       val array = matrix(k)
 
-      val dv = DenseVector(array.toArray)
+      //val dv = DenseVector(array.toArray)
 
-      val lv = LabeledVector(label, dv)
+      //val lv = LabeledVector(label, dv)
       // geneMatrix füllen
       matrixaslist = array.toList :: matrixaslist
-      pw.write(lv.label.toInt + " ")
-      for (j <- Range(0, lv.vector.size)) {
-        pw.write((j + 1) + ":" + lv.vector(j) + " ")
+      pw.write(label.toInt + " ")
+      for (j <- Range(0, matrix(k).size)) {
+        pw.write((j + 1) + ":" + matrix(k)(j) + " ") //lv.vector(j) + " ")
       }
       pw.write("\n")
 
@@ -87,16 +87,17 @@ object PreprocessingMethods {
     val nameindex = 0
     var countindex = 1
     for (i <- Range(0, columns.length)) {
-      if (columns(i) == "reads_per_million_miRNA_mapped")
+      if (columns(i) == "reads_per_million_miRNA_mapped" || columns(i).contains("count"))
         countindex = i
     }
 
     var data = Pipeline.readmiRNA(env, path, Array(nameindex, countindex))
-
+    /*data = data.filter{ c => c.ID.contains("?") == false}
     // Bestimmte Gene ausschließen
     for (gene <- excludesGenes) {
       data = data.filter { c => c.ID.equals(gene) == false }
-    }
+    }*/
+
     val tuples = data.collect()
     var countslist = List[Double]()
     var genelist = List[String]()
@@ -105,7 +106,7 @@ object PreprocessingMethods {
     // collect-Befehl für DataSets die Daten umordnet, was sehr ärgerlich ist
     var j = 0
     while (j < tuples.length){
-      if (tuples(j).count.contains("reads") == false) {
+      if (tuples(j).count.contains("reads") == false && tuples(j).count.contains("count") == false) {
         genelist = tuples(j).ID :: genelist
         countslist = tuples(j).count.toDouble :: countslist
       }
@@ -150,8 +151,7 @@ object PreprocessingMethods {
     for (path <- path_list) {
 
       val files = Tools.getListOfFiles(path)
-
-      if ( label == 1) {
+      if (label == 1) {
         for (j <- Range(0, allstrings.length)) {
           matrix(rownumber)(j) = allCounts(rownumber)(j)
           pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
@@ -160,31 +160,36 @@ object PreprocessingMethods {
         rownumber += 1
       }
 
-      for (k <- Range(1, files.length)) {
-        allstrings = allstrings ::: allGenes(rownumber) distinct;
-        val currentgenes = allGenes(rownumber)
-        val currentcounts = allCounts(rownumber)
+      for (k <- Range(1, files.length + 1)) {
 
-        for (j <- Range(0, allstrings.length)) {
-          if (currentgenes.contains(allstrings(j))) {
-            val index = currentgenes.indexOf(allstrings(j))
-            matrix(rownumber)(j) = currentcounts(index)
+        println(" k = " + k)
+        if (k == files.length && label == -1) {
 
-            pwmatrix.write((rownumber+1).toString + "," +  (j+1).toString + "," + matrix(rownumber)(j))
-            pwmatrix.write("\n")
-          }
-          else {
-            matrix(rownumber)(j) = 0
-          }
         }
-        rownumber += 1
-        labels = label :: labels
+        else {
+          allstrings = allstrings ::: allGenes(rownumber) distinct;
+          val currentgenes = allGenes(rownumber)
+          val currentcounts = allCounts(rownumber)
+
+          for (j <- Range(0, allstrings.length)) {
+            if (currentgenes.contains(allstrings(j))) {
+              val index = currentgenes.indexOf(allstrings(j))
+              matrix(rownumber)(j) = currentcounts(index)
+              pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
+              pwmatrix.write("\n")
+            }
+            else {
+              matrix(rownumber)(j) = 0
+            }
+          }
+          rownumber += 1
+          labels = label :: labels
+        }
       }
       label = -1
     }
 
     pwmatrix.close()
-
     return (matrix, allstrings, labels.toArray)
   }
 
