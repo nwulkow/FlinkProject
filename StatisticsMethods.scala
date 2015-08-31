@@ -25,10 +25,7 @@ object StatisticsMethods {
 
   def meanOfArray(array: List[Double]): Double = {
 
-    var sum = 0d
-    for (j <- Range(0, array.length)) {
-      sum = sum + array(j)
-    }
+    val sum = array.sum
     return (sum / array.length)
 
 
@@ -39,10 +36,12 @@ object StatisticsMethods {
 
     val mean1 = meanOfArray(array1)
     val mean2 = meanOfArray(array2)
-
+    val mean1_minus_value =  array1.map(c => c - mean1)
+    val mean2_minus_value =  array2.map(c => c - mean2)
+    //val product = (mean1_minus_value,mean2_minus_value)
     var sum = 0d
     for (j <- Range(0, array1.length)) {
-      sum = sum + (array1(j) - mean1) * (array2(j) - mean2)
+      sum = sum + mean1_minus_value(j) * mean2_minus_value(j)
     }
 
     return sum
@@ -51,8 +50,10 @@ object StatisticsMethods {
   def correlationvalue(array1: List[Double], array2: List[Double], mean1: Double, mean2: Double): Double = {
 
     var sum = 0d
+    val mean1_minus_value =  array1.map(c => c - mean1)
+    val mean2_minus_value =  array2.map(c => c - mean2)
     for (j <- Range(0, array1.length)) {
-      sum = sum + (array1(j) - mean1) * (array2(j) - mean2)
+      sum = sum + mean1_minus_value(j) * mean2_minus_value(j)
     }
 
     return sum
@@ -62,11 +63,25 @@ object StatisticsMethods {
 
   def variance(array: List[Double]): Double = {
 
-    var sum = 0d
+    //var sum = 0d
     val mean = meanOfArray(array)
-    for (j <- Range(0, array.length)) {
+    val squared = array.map(c => Math.pow(c- mean,2))
+    val sum = squared.sum
+   /* for (j <- Range(0, array.length)) {
       sum = sum + Math.pow((array(j)-mean),2)
-    }
+    }*/
+    return Math.pow(sum, 0.5)
+
+  }
+
+  def variance(array: List[Double], mean: Double): Double = {
+
+    //var sum = 0d
+    val squared = array.map(c => Math.pow(c- mean,2))
+    val sum = squared.sum
+    /* for (j <- Range(0, array.length)) {
+       sum = sum + Math.pow((array(j)-mean),2)
+     }*/
     return Math.pow(sum, 0.5)
 
   }
@@ -85,6 +100,39 @@ object StatisticsMethods {
     val correlation = correlationvalue(array1,array2)
     return correlation / (var1 * var2)
   }
+
+
+  def rank_differences(pageranks_healthy: DataSet[Page], pageranks_diseased: DataSet[Page], allGenes : List[String]): Unit ={
+
+    var pr_h_collect = pageranks_healthy.collect()
+    pr_h_collect = pr_h_collect.sortBy(c => c.rank)
+    var pr_d_collect = pageranks_diseased.collect()
+    pr_d_collect = pr_d_collect.sortBy(c => c.rank)
+
+    var distanceList = List[(String, Double)]()
+
+    var index = 0
+    for (p <- pr_h_collect){
+
+      var index_diseased = 0
+      for (pd <- pr_d_collect){
+        if(p.pageId == pd.pageId){
+          index_diseased = index_diseased + 1
+        }
+      }
+      index = index + 1
+      val distance = Math.abs(index - index_diseased).toDouble
+      distanceList =  (allGenes(p.pageId.toInt - 1),distance) :: distanceList
+
+    }
+
+    distanceList.sortBy(c => c._2)
+    for (i <- Range(0,10)) {
+      println("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
+    }
+
+  }
+
 
 
 
