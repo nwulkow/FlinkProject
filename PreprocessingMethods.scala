@@ -162,7 +162,6 @@ object PreprocessingMethods {
 
       for (k <- Range(1, files.length + 1)) {
 
-        println(" k = " + k)
         if (k == files.length && label == -1) {
 
         }
