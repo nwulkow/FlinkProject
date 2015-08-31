@@ -8,18 +8,33 @@ import PageRankBasicForPipeline.Page
 import org.apache.flink.graph.Vertex
 import org.apache.flink.ml.MLUtils
 import org.apache.flink.ml.classification.SVM
-import org.apache.flink.ml.common.LabeledVector
+import org.apache.flink.ml.common.{ParameterMap, WeightVector, LabeledVector}
 import com.github.projectflink.als.ALSJoin
+import org.apache.flink.ml.math.SparseVector
+import org.apache.flink.ml.regression.MultipleLinearRegression
 
 import scala.reflect.io.Path
 
-import breeze._
+
+import scala.util.Random
 
 object Pipeline {
 
 
   val env = ExecutionEnvironment.getExecutionEnvironment
   var matrixaslist = List[List[Double]]()
+
+  var matrixBool = true
+  var MC_iterations: Int = 100
+  var MC_factors: Int = 10
+  var SVM_iterations: Int = 100
+  var SVM_stepsize: Double = 0.01
+  var SVM_regularization: Double = 0.01
+  var threshold: Double = 0.8
+  var noSelectedGenes: Int = 500
+  var corrMatrixCompletionBool = false
+  var trainingType : String = "SVM"
+
 
   def main(args: Array[String]) {
 
@@ -29,6 +44,13 @@ object Pipeline {
       return
     }
     // -------------------------------------------------------
+
+    applyAdditionalInput(additional_input)
+
+
+
+    // -------------------------------------------------------
+
 
     //Pfade für temporäre Dateien
     val outputpath: Path = Path(path + "/Output")
@@ -68,6 +90,9 @@ object Pipeline {
     val pw_incompletematrix = new FileWriter(new File(incompletematrix_path))
     val pw_resultlabels = new FileWriter(new File(resultlabels_path))
 
+    val corrMatrix_path_healthy = temp_outputpath + "/corrMatrix_healthy"
+    val corrMatrix_path_diseased = temp_outputpath + "/corrMatrix_diseased"
+
     // -------------------------------------------------------
     // Vorbereitung der Matrix Completion. Reihen sind die verschiedenen Personen, Spalten die Genecounts
     val numberHealthy = Tools.getListOfFiles(path_healthy).length
@@ -93,10 +118,10 @@ object Pipeline {
     val eigs = breeze.linalg.eig(densematrix)
     //println(eigs.eigenvalues + "EIGENVALUES")
     */
-    //incompleteMatrix = ALSJoin.doMatrixCompletion(incompletematrix_path, 10, 100, 42, Some("dummy string"), path, numberPeople, numberGenes)
-
+    if (matrixBool == true) {
+      incompleteMatrix = ALSJoin.doMatrixCompletion(incompletematrix_path, MC_factors, MC_iterations, 42, Some("dummy string"), path, numberPeople, numberGenes)
+    }
     // Die Zeilen der vervollständigten Matrix umwandeln in 'LabeledVectors'
-    println(""+ incompleteMatrix(incompleteMatrix.length - 1).toList)
     matrixaslist = PreprocessingMethods.preprocessdataFromMatrix(incompleteMatrix, numberHealthy, pw, matrixaslist)
 
     // -------------------------------------------------------
@@ -107,17 +132,49 @@ object Pipeline {
     // SVM
     val svmData: DataSet[LabeledVector] = MLUtils.readLibSVM(env, outputPath_SVM)
 
-    val svm = SVM()
-      .setBlocks(env.getParallelism)
-      .setIterations(100)
-      .setRegularization(0.001)
-      .setStepsize(0.1)
-      .setSeed(42)
+    var weightsList = Array[Double]()
+    if ( trainingType == "SVM") {
+      val svm = SVM()
+        .setBlocks(env.getParallelism)
+        .setIterations(SVM_iterations)
+        .setRegularization(0.001)
+        .setStepsize(SVM_stepsize)
+        .setSeed(42)
 
-    svm.fit(svmData)
-    val f = svm.weightsOption
-    val weights = f.get.collect()
-    val weightsList = weights.toList
+      svm.fit(svmData)
+      val f = svm.weightsOption
+      val weights = f.get.collect()
+      weightsList = weights.toList(0).toArray
+    }
+
+    else {
+
+      /*  val mlr = MultipleLinearRegression()
+          .setStepsize(1.0)
+          .setIterations(100)
+          .setConvergenceThreshold(0.001)
+        mlr.fit(svmData)
+        val weightList_collect = mlr.weightsOption.get.collect()
+        println("jetzt hier")
+        val WeightVector(weightsList, intercept) = weightList_collect(0)
+        println("HABE DIE GEWICHTE")
+
+  */
+      svmData.map(c => c.vector)
+
+      val regression = MultipleLinearRegression()
+      // set parameter for the regression
+      val parameters = ParameterMap()
+        .add(MultipleLinearRegression.Stepsize, 0.05)
+        .add(MultipleLinearRegression.Iterations, 50)
+      regression.fit(svmData, parameters)
+
+      // get parameters
+      val weightList_WO = regression.weightsOption
+      val WL = weightList_WO.get
+      val WeightVector(weightsList, intercept) = WL.collect()(0)
+      println("fertig")
+    }
     // -------------------------------------------------------
     // Testen des classifiers
 
@@ -134,7 +191,7 @@ object Pipeline {
       val extended_testperson_counts = Tools.mergeCountLists(testperson_counts, testperson_genes, allGenes)
 
       // Skalarprodukt des classifiers ('weightList(0)') mit den Werten einer Testperson
-      val product = (weightsList(0).toArray, extended_testperson_counts).zipped.map((c1, c2) => c1 * c2).sum
+      val product = (weightsList, extended_testperson_counts).zipped.map((c1, c2) => c1 * c2).sum
       scalarproducts(k) = product
 
       // Erstelltes Label (Vorzeichen des Skalarproduktes) in eine .txt-File schreiben
@@ -154,16 +211,16 @@ object Pipeline {
     // Die wichtigesten Gene ausgeben
     val numberOfTopGenes = 10
     // Höchste Gewichte
-    val sortedweights = weightsList(0).toArray.sorted
+    val sortedweights = weightsList.sorted
     var topPositiveWeights = List[(String, Double)]()
     var topNegativeWeights = List[(String, Double)]()
 
     var genesWithWeights = List[(String,Double)]()
     val weightsListCopy = weightsList
     for (k <- Range(0,numberGenes)){
-      val correspondingGeneIndex = weightsListCopy(0).toArray.indexOf(sortedweights(allGenes.length - 1 - k))
+      val correspondingGeneIndex = weightsListCopy.indexOf(sortedweights(allGenes.length - 1 - k))
       genesWithWeights ::= (allGenes(correspondingGeneIndex), sortedweights(allGenes.length - 1 - k))
-      weightsListCopy(0)(correspondingGeneIndex) = Math.exp(1000) // Sicherstellen, dass kein Gen doppelt in der Liste auftaucht (wenn mehrere Gene das gleiche Gewicht haben)
+      weightsListCopy(correspondingGeneIndex) = Math.exp(1000) // Sicherstellen, dass kein Gen doppelt in der Liste auftaucht (wenn mehrere Gene das gleiche Gewicht haben)
     }
     Tools.writeGenesWithWeights(genesWithWeights, genesWithWeights_path)
 
@@ -188,7 +245,7 @@ object Pipeline {
     // Korrelationswerte berechnen und schreiben
 
 
-    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path_ranks: String, gdf_path_cluster: String): DataSet[Page] =  {
+    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path_ranks: String, gdf_path_cluster: String, corrMatrix_path: String): DataSet[Page] = {
 
       var meansList = List[Double]()
       var varianceList = List[Double]()
@@ -198,24 +255,93 @@ object Pipeline {
 
       val pw_matrix = new FileWriter(path_matrix)
       val pw_nodes_file = new FileWriter(path_nodes)
+      val pw_corrMatrix = new FileWriter(corrMatrix_path)
 
       var network = List[Array[Double]]() // Netzwerk wird gespeichert, um später ein GDF-File zu erzeugen
 
       // Netzwerk-Matrix wird erzeugt und in ein .txt-File geschrieben. Das Netzwerk ist ungewichtet, der threshold muss angegeben werden
       for (j <- Range(0, noGenes)) {
         meansList = StatisticsMethods.meanOfArray(matrixaslistTranspose(j)) :: meansList
-        varianceList = StatisticsMethods.variance(matrixaslistTranspose(j)) :: varianceList
+        varianceList = StatisticsMethods.variance(matrixaslistTranspose(j), meansList(0)) :: varianceList
       }
 
-      val threshold = 0.8 // Threshold
+      var indices = new Array[Int](noGenes)
+      for (i <- Range(0, noGenes)) {
+        indices(i) = i
+      }
+
+      if (corrMatrixCompletionBool == false) noSelectedGenes = noGenes
+
+      val selectedGeneIndices = Random.shuffle(indices.toList).take(noSelectedGenes)
+
+      //var corrMatrix = Array.ofDim[Double](noGenes, noGenes)
+      var matrixInXY = List[(Int, Int, Double)]()
 
       for (j <- Range(0, noGenes)) {
-        println("j = " + j)
-        pw_nodes_file.write((j+1).toString + " " +  ((j+1)).toString)
+        //corrMatrix(j)(j) = 1d
+        matrixInXY = (j, j, 1d) :: matrixInXY
+
+        pw_corrMatrix.write(j + "," + j + "," + 1)
+        pw_corrMatrix.write("\n")
+        for (h <- Range(j, noSelectedGenes)) {
+          val corrValue = StatisticsMethods.correlationcoefficient(matrixaslistTranspose(noGenes - 1 - j), matrixaslistTranspose(noGenes - 1 - selectedGeneIndices(h)), varianceList(noGenes - 1 - j), varianceList(noGenes - 1 - selectedGeneIndices(h)))
+          //corrMatrix(j)(selectedGeneIndices(h)) = corrValue
+          if (corrValue.isInfinity == false && corrValue.isNaN == false) {
+            matrixInXY = (j, selectedGeneIndices(h), corrValue) :: matrixInXY
+            pw_corrMatrix.write(j + "," + selectedGeneIndices(h) + "," + corrValue)
+            pw_corrMatrix.write("\n")
+          }
+        }
+      }
+      pw_corrMatrix.close()
+
+      if (corrMatrixCompletionBool == true) {
+        matrixInXY = List[(Int, Int, Double)]()
+        val corrMatrix = ALSJoin.doMatrixCompletion(corrMatrix_path, 10, 100, 42, Some("dummy string"), path, noGenes, noGenes)
+        for (i <- Range(0, noGenes)) {
+          for (j <- Range(0, noGenes)) {
+            matrixInXY = (i, j, corrMatrix(i)(j)) :: matrixInXY
+          }
+        }
+      }
+
+      for (i <- Range(0, matrixInXY.length)) {
+        val current = matrixInXY(i)
+        if (current._3 > threshold) {
+          pw_matrix.write((current._1 + 1).toString + " " + (current._2 + 1).toString + " " + 1.toString)
+          pw_matrix.write("\n")
+          pw_matrix.write((current._2 + 1).toString + " " + (current._2 + 1).toString + " " + 1.toString)
+          pw_matrix.write("\n")
+          network = Array[Double](current._1, current._2) :: network
+          network = Array[Double](current._2, current._1) :: network
+        }
+      }
+
+    /*    for (j <- Range(0, noGenes)) {
+          println(" j = " + j)
+          pw_nodes_file.write((j + 1).toString + " " + ((j + 1)).toString) //Knoten-Nummer mit Cluster-Nummer (beide gleich)
+          pw_nodes_file.write("\n")
+
+          for (h <- Range(j, noGenes)) {
+            if (corrMatrix(j)(h) > threshold) {
+              pw_matrix.write((j + 1).toString + " " + (h + 1).toString + " " + 1.toString)
+              pw_matrix.write("\n")
+              pw_matrix.write((h + 1).toString + " " + (j + 1).toString + " " + 1.toString)
+              pw_matrix.write("\n")
+              network = Array[Double](j, h) :: network
+              network = Array[Double](h, j) :: network
+            }
+          }
+
+        }*/
+
+        /* for (j <- Range(0, noGenes)) {
+        println(" j = " + j)
+        pw_nodes_file.write((j+1).toString + " " +  ((j+1)).toString) //Knoten-Nummer mit Cluster-Nummer (beide gleich)
         pw_nodes_file.write("\n")
 
-        for (h <- Range(j, noGenes)) {
-          if (threshold < Math.abs(StatisticsMethods.correlationcoefficient(matrixaslistTranspose(j), matrixaslistTranspose(h)))) {
+        for (h <- Range(j, noSelectedGenes)) {
+          if (threshold < Math.abs(StatisticsMethods.correlationcoefficient(matrixaslistTranspose(noGenes - 1 - j), matrixaslistTranspose(noGenes - 1 - selectedGeneIndices(h)),varianceList(noGenes - 1 - j),varianceList(noGenes - 1 - selectedGeneIndices(h))))) {
             pw_matrix.write((j+1).toString + " " + (h+1).toString + " " + 1.toString)
             pw_matrix.write("\n")
             pw_matrix.write((h+1).toString + " " + (j+1).toString + " " + 1.toString)
@@ -224,29 +350,26 @@ object Pipeline {
             network = Array[Double](h, j) :: network
           }
         }
-      }
-      // FileWriter schließen
-      pw_matrix.close()
-      pw_nodes_file.close()
-      println("vor PRB")
-      val pageranks = PageRankBasicForPipeline.executePRB(path_nodes, path_matrix, "", numberGenes)
-     // Ein GDF-File schreiben mit dem Netzwerk und den PageRankBasic-Werten
-      println(" jetzt nach PRB")
-      StatisticsMethods.writeGDFFile_Pagerank(network, pageranks, allGenes, gdf_path_ranks)
-      println("nach GDF")
+      }*/
 
-      // Community Detection Algorithm. Ordnet die einzelnen Gene Clustern zu
-      val clusters =  GellyAPI_clean.doClusterDetection(network_nodes_healthy_path, network_matrix_healthy_path, cluster_file_path)
-      println("nach Cluster Det")
-      GellyAPI_clean.writeGDFFile_Clusters(path_matrix,clusters, allGenes_string, gdf_path_cluster)
-      println("nach GDF Cluster")
-      return pageranks
-    }
+
+        // FileWriter schließen
+        pw_matrix.close()
+        pw_nodes_file.close()
+        val pageranks = PageRankBasicForPipeline.executePRB(path_nodes, path_matrix, "", numberGenes)
+        // Ein GDF-File schreiben mit dem Netzwerk und den PageRankBasic-Werten
+        StatisticsMethods.writeGDFFile_Pagerank(network, pageranks, allGenes, gdf_path_ranks)
+
+        // Community Detection Algorithm. Ordnet die einzelnen Gene Clustern zu
+        val clusters = GellyAPI_clean.doClusterDetection(network_nodes_healthy_path, network_matrix_healthy_path, cluster_file_path)
+        GellyAPI_clean.writeGDFFile_Clusters(path_matrix, clusters, allGenes_string, gdf_path_cluster)
+        return pageranks
+      }
 
 
     var (matrixaslistHealthy, matrixaslistDiseased) = matrixaslist.splitAt(numberHealthy)
-    val pageranks_healthy =  doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy, cluster_gdf_healthy)
-    val pageranks_diseased =  doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased, cluster_gdf_diseased)
+    val pageranks_healthy =  doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy, cluster_gdf_healthy, corrMatrix_path_healthy)
+    val pageranks_diseased =  doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased, cluster_gdf_diseased, corrMatrix_path_diseased)
 
 
     StatisticsMethods.rank_differences(pageranks_healthy,pageranks_diseased, allGenes)
@@ -265,11 +388,13 @@ object Pipeline {
   private var path = ""
   private var excludesGenes: Array[String] = null
   private var testFiles_path = ""
+  private var additional_input = ""
   private def parseParameters(args: Array[String]): Boolean = {
     if (args.length > 0) {
       path = args(0)
       excludesGenes = args(1).split(",")
       testFiles_path = args(2)
+      additional_input = args(3)
       true
     } else {
       false
@@ -284,6 +409,54 @@ object Pipeline {
       path,
       fieldDelimiter = "\t",
       includedFields = columns)
+  }
+
+
+
+  def applyAdditionalInput(input: String): Unit ={
+
+    val numPattern = "[0-9]+".r
+    val lines = input.split("STOP")
+
+    for (i <- lines){
+      if ( i.contains("factors")) {
+        MC_factors = numPattern.findFirstIn(i).get.toString.toInt
+      }
+      else if (i.contains("networkpath")){
+        val networkpath = i.split(" = ")(1)
+      }
+      else if (i.contains("completion")){
+        val matrixAnswer = i.split("=")(1)
+        if(matrixAnswer.contains("yes")) matrixBool = true
+      }
+      else if (i.contains("completion") && i.contains("regularization")){
+        MC_iterations = numPattern.findFirstIn(i).get.toString.toInt
+      }
+      else if (i.contains("SVM") && i.contains("iterations")){
+        SVM_iterations = numPattern.findFirstIn(i).get.toString.toInt
+      }
+      else if (i.contains("SVM") && i.contains("regularization")){
+        SVM_regularization = numPattern.findFirstIn(i).get.toString.toDouble
+      }
+      else if (i.contains("SVM") && i.contains("stepsize")){
+        SVM_stepsize = numPattern.findFirstIn(i).get.toString.toDouble
+      }
+      else if (i.contains("threshold") || i.contains("thresshold")){
+        threshold = numPattern.findFirstIn(i).get.toString.toDouble
+      }
+      else if (i.contains("selected") && (i.contains("genes") || i.contains("Genes"))){
+        noSelectedGenes = numPattern.findFirstIn(i).get.toString.toInt
+      }
+      else if (i.contains("train") && i.contains("linear") && i.contains("regression")){
+        trainingType = "LR"
+      }
+      else if (i.contains("completion") && i.contains("correlation") && i.contains("yes")){
+        corrMatrixCompletionBool = true
+        println("HALLO")
+      }
+    }
+
+
   }
 
 
