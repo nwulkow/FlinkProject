@@ -2,7 +2,7 @@
 package de.fuberlin.de.largedataanalysis
 
 
-import java.io.{File, FileWriter}
+import java.io.{PrintWriter, File, FileWriter}
 import PageRankBasicForPipeline.Page
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.graph.Vertex
@@ -65,7 +65,7 @@ object StatisticsMethods {
 
     //var sum = 0d
     val mean = meanOfArray(array)
-    val squared = array.map(c => Math.pow(c- mean,2))
+    val squared = array.map(c => Math.pow(c - mean,2))
     val sum = squared.sum
    /* for (j <- Range(0, array.length)) {
       sum = sum + Math.pow((array(j)-mean),2)
@@ -102,7 +102,7 @@ object StatisticsMethods {
   }
 
 
-  def rank_differences(pageranks_healthy: DataSet[Page], pageranks_diseased: DataSet[Page], allGenes : List[String]): Unit ={
+  def rank_differences(pageranks_healthy: DataSet[Page], pageranks_diseased: DataSet[Page], allGenes : List[String], path: String): Unit ={
 
     var pr_h_collect = pageranks_healthy.collect()
     pr_h_collect = pr_h_collect.sortBy(c => c.rank)
@@ -125,18 +125,26 @@ object StatisticsMethods {
       distanceList =  (allGenes(p.pageId.toInt - 1),distance) :: distanceList
 
     }
-
     distanceList.sortBy(c => c._2)
-    for (i <- Range(0,10)) {
-      println("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
+
+    val pw_ranks = new PrintWriter(new FileWriter((path)))
+
+    for (i <- Range(0,(distanceList.length))) {
+      if (i < 10) {
+        println("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
+      }
+      pw_ranks.write("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
+      pw_ranks.write("\n")
     }
+
+
 
   }
 
 
 
 
-  def writeGDFFile_Pagerank(network: List[Array[Double]], ranks: DataSet[Page],allGenes: List[String], gdfpath: String) {
+  def writeGDFFile_Pagerank(network: List[Array[Double]], ranks: DataSet[Page],allGenes: List[String], gdfpath: String, network_string: List[String]) {
 
     val gdf_file = new FileWriter(new File(gdfpath))
     gdf_file.write("nodedef>name VARCHAR, rank DOUBLE, label VARCHAR")
@@ -149,12 +157,15 @@ object StatisticsMethods {
     }
     gdf_file.write("edgedef>node1 VARCHAR, node2 VARCHAR")
     gdf_file.write("\n")
+    for (line <- network_string){
+    gdf_file.write(line)
+    }
+    /*gdf_file.write("\n")
     for (i <- Range(0, network.length)) {
       val current = network(i)
       gdf_file.write(current(0).toInt + "," +  current(1).toInt)
       gdf_file.write("\n")
-    }
-
+    }*/
     gdf_file.close()
 
   }
