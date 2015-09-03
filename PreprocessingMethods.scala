@@ -78,7 +78,7 @@ object PreprocessingMethods {
   }
 
 
-  def readOnePersonsData(path: String, excludesGenes: Array[String]): (List[Double],List[String]) = {
+  def readOnePersonsData(path: String, excludesGenes: Array[String], maxGenes: Int = 10000000): (List[Double],List[String]) = {
 
     val text = Source.fromFile(path).getLines().toList
     val firstline = text(0)
@@ -92,11 +92,12 @@ object PreprocessingMethods {
     }
 
     var data = Pipeline.readmiRNA(env, path, Array(nameindex, countindex))
-    /*data = data.filter{ c => c.ID.contains("?") == false}
+    data = data.filter{ c => c.ID.contains("?") == false}
+    data = data.filter{c =>  c.count.contains("count") == false}
     // Bestimmte Gene ausschließen
     for (gene <- excludesGenes) {
       data = data.filter { c => c.ID.equals(gene) == false }
-    }*/
+    }
 
     val tuples = data.collect()
     var countslist = List[Double]()
@@ -106,10 +107,10 @@ object PreprocessingMethods {
     // collect-Befehl für DataSets die Daten umordnet, was sehr ärgerlich ist
     var j = 0
     while (j < tuples.length){
-      if (tuples(j).count.contains("reads") == false && tuples(j).count.contains("count") == false) {
+      //if (tuples(j).count.contains("reads") == false && tuples(j).count.contains("count") == false) {
         genelist = tuples(j).ID :: genelist
         countslist = tuples(j).count.toDouble :: countslist
-      }
+     // }
       j = j + 1
     }
 
@@ -119,7 +120,7 @@ object PreprocessingMethods {
 
 
 
-  def matrixCreation(path_list: Array[String], pwmatrix: FileWriter, excludesGenes: Array[String]): (Array[Array[Double]],List[String], Array[Double]) =  {
+  def matrixCreation(path_list: Array[String], pwmatrix: FileWriter, excludesGenes: Array[String], maxGenes: Int = 10000000): (Array[Array[Double]],List[String], Array[Double]) = {
 
     var allCounts = List[List[Double]]()
     var allGenes = List[List[String]]()
@@ -127,7 +128,6 @@ object PreprocessingMethods {
     var labels = List[Double]()
 
     var numberOfFiles = 0
-
     for (path <- path_list) {
 
       val files = Tools.getListOfFiles(path)
@@ -154,8 +154,8 @@ object PreprocessingMethods {
       if (label == 1) {
         for (j <- Range(0, allstrings.length)) {
           matrix(rownumber)(j) = allCounts(rownumber)(j)
-          pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
-          pwmatrix.write("\n")
+          //pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
+          //pwmatrix.write("\n")
         }
         rownumber += 1
       }
@@ -174,8 +174,8 @@ object PreprocessingMethods {
             if (currentgenes.contains(allstrings(j))) {
               val index = currentgenes.indexOf(allstrings(j))
               matrix(rownumber)(j) = currentcounts(index)
-              pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
-              pwmatrix.write("\n")
+              //pwmatrix.write((rownumber + 1).toString + "," + (j + 1).toString + "," + matrix(rownumber)(j))
+              //pwmatrix.write("\n")
             }
             else {
               matrix(rownumber)(j) = 0
@@ -188,8 +188,21 @@ object PreprocessingMethods {
       label = -1
     }
 
+
+    val matrix_slice = Array.ofDim[Double](matrix.length, Math.min(maxGenes,matrix(0).length))
+      for (i <- Range(0, matrix.length)) {
+        matrix_slice(i) = matrix(i).slice(0, Math.min(maxGenes,matrix(0).length))
+      }
+
+    for (l <- Range(0, matrix.length)) {
+      for (k <- Range(0, Math.min(maxGenes, allstrings.length))) {
+        pwmatrix.write((l + 1).toString + "," + (k + 1).toString + "," + matrix(l)(k))
+        pwmatrix.write("\n")
+      }
+    }
     pwmatrix.close()
-    return (matrix, allstrings, labels.toArray)
+
+    return (matrix_slice, allstrings.slice(0,Math.min(maxGenes,allstrings.length)), labels.toArray)
   }
 
 
