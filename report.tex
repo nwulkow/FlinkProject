@@ -1,0 +1,149 @@
+\documentclass{bioinfo}
+
+
+\copyrightyear{2015}
+\pubyear{2015}
+
+\begin{document}
+\firstpage{1}
+
+\title[short Title]{A Workflow for the identification of breast cancer inducing genes}
+\author[Sample \textit{et~al}]{Niklas Wulkow,$^{1}$
+\footnote{to whom correspondence should be addressed}}
+\address{$^{1}$Freie Universit{\"a}t Berlin}
+
+\history{Received on XXXXX; revised on XXXXX; accepted on XXXXX}
+
+\editor{}
+
+\maketitle
+\begin{abstract}
+
+\section{Motivation:}
+With millions of genes and proteins, the human body provides tons of data that can be analyzed for various means. Detecting and identifying genes disease-causing genes and proteins is one of them. Multiple different approaches have been made therefore, from regression to network analysis. In this paper I will present some of them, that I have also included into an analysis 'pipeline', which can be fed with data and produces results as to which genes are candidates to be disease-causing. To be precise, the disease we are looking at is breast cancer ('Breast invasive carcinoma,' BRCA).
+
+\section{Results:}
+I will name genes that are, according to my pipeline, candidates to be disease-causing at the end of this article.
+
+\section{Availability and implementation:}
+My code is available at
+https://github.com/nwulkow/FlinkProject.\\
+It is written in Scala.
+
+\section{Contact:} \href{}{niklas.wulkow@ewetel.net}
+\end{abstract}
+
+\section{Introduction:}
+My analysis pipeline for gene data uses various methods in order to find genes that cause breast cancer. I will explain one machine learning and two network-based approaches and how I included them into the pipeline.\\
+This article is structured the following way: I will give an overview about the data used and the methods I built in, describe the pipeline in a more detailed way and talk about the output of the pipeline in the end. 
+
+ 
+
+\section{Data:}
+ 
+
+The data that was used was taken from 'The Cancer Genome Atlas' (TCGA). This database offers real data contained in .txt-files for free. I ran my pipeline on two types of data: miRNA-data and mRNA-data. The miRNA-data consists of several datasets with 1046 features each, i.e. 1046 miRNA-codes and their corresponding frequency in the blood probe taken from a person. The mRNA-data contains 20502 features per person. 
+
+As every data package of mRNA and miRNA contains more than one type of data, I deleted some files and only considered the remaining ones. For miRNA, the used files have the ending '.mirna.quantification' and for mRNA, the used files end on 'rsem.genes.results'. 
+
+They are structured the following way: For miRNA, every .txt-file has four columns, the \texttt{miRNA-ID}, the \texttt{read\_count}, \texttt{reads\_per\_million\_miRNA\_mapped}
+ and \texttt{cross\_mapped}. The first and third columns 
+are the ones we are interested in. For mRNA, the 
+.txt-files have the four columns \texttt{'gene\_id}, 
+\texttt{raw\_count}, \texttt{scaled\_estimate} and 
+\texttt{transcript\_id}. The lines 2-30 of the mRNA-files 
+also have to be erased. Fortunately, the entire reading process is done in the pipeline so the user does not have to change anything inside the files. 
+
+ 
+
+ 
+
+ 
+
+\section{Methods:}
+ 
+
+I have included four Flink-based algorithms into my pipeline. Apache Flink is an `open source platform for scalable batch and stream data processing` (from https://flink.apache.org). It provides methods and network that enables users and developers to work on very large datasets very quickly. Its developers describe it as 'fast, easy to use, reliable, scalable, expressive' and 'hadoop-compatible'. It provides useful `API's` (application programming interfaces) for machine learning and graph analysis that I both incorporated into my pipeline. 
+
+Further, there is a lot of programming source code available for free on GitHub that used Flink-algorithms and is written in Scala, a programming language whose advantage over other programming languages lies in the fact that is can deal with big datasets quicker. Hence, the pipeline was written in Scala.\\
+
+ 
+
+\subsection{MATRIX COMPLETION: }
+
+  
+
+Matrix completion is a topic that has come up only a few years ago. It adresses the attempt to figure out all entries of a matrix even if only a certain fraction of them is given. Different algorithms have been developed that tackle this problem and one of them has already been implemented in Scala. Here is a description of the algorithm, taken from https://ci.apache.org/projects/flink/flink-docs-master/libs/ml/als.html: \\\\
+`The alternating least squares (ALS) algorithm factorizes a given matrix $R$ into two factors $U$ and $V$ such that $R\approx UV$. The unknown row dimension is given as a parameter to the algorithm and is called latent factors. Since matrix factorization can be used in the context of recommendation, the matrices U and V can be called user and item matrix, respectively. The i-th column of the user matrix is denoted by $u_i$ and the i-th column of the item matrix is $v_i$. The matrix $R$ can be called the ratings matrix with $R_{ij} =r_{ij}$.\\
+In order to find the user and item matrix, the following problem is solved: 
+
+$ argmin_{U,V} \sum_{i,j\mid r_{ij} \neq0}(r_{ij}−u_i v_j)^{2}+\lambda(\sum_i \Vert u_i\Vert ^{2}+\sum_j \Vert v_j \Vert ^{2}) $
+
+with $\lambda$ being the regularization factor, $u_i$ being the number of items the user i has rated and $v_j$ being the number of times the item j has been rated. This regularization scheme to avoid overfitting is called weighted-$\lambda$-regularization. Details can be found in the work of Zhou et al.. 
+
+By fixing one of the matrices $U$ or $V$, we obtain a quadratic form which can be solved directly. The solution of the modified problem is guaranteed to monotonically decrease the overall cost function. By applying this step alternately to the matrices $U$ and $V$, we can iteratively improve the matrix factorization.`\\\\
+Matrix completion requires the matrix to have a low-rank-structure. The matrix that contains the data (the i,j-th entry of the matrix represents the frequency of the j-th gene in the i-th blood probe) is expected to have low rank or to be close to it, since the concentration of a certain gene in a blood probe should be similar among all healthy respectively all diseased people. 
+
+ 
+
+Matrix completion can be useful for our pipeline, since real data is far from perfect. Chances are that it is not complete, so that we have to make it complete by guessing what the missing entries are. Therefore, matrix completion is the perfect tool. 
+
+ 
+
+ 
+
+\subsection{SVM}
+
+SVM (Support Vector machines) is a mathematical method that can be used to seperate datapoints into two sets by a hyperplane. They describe an optimization problem whose solution classifies of certain points into one group and the remaining points into the other group. The solution itself is a vector whose dimension equal the dimension of a datapoint. The optimization problems are made in a way such that an entry of that result vector, the 'classifier', has a high value if and only if there are big differences among classes regarding that particular entry. 
+
+SVM is useful for the detection of disease-causing genes, because by comparing the gene data of healthy and diseased people and applying SVM, the resulting classifier indicates which genes are important. Using that classifier, we can than make a statement about whether a person whose health we are not informed about is diseased or not. 
+
+A typical SVM optimazation problem looks like this: 
+
+minimize over all $\omega \in R^{n}:\\  \frac{1}{2}\Vert\omega\Vert^2_2 + C \sum_{i=1}^{n} max(0,1-y_i(\omega ^T x_i + b))^2$\\ where $x_i$ is the i-th row of the data matrix and $y_i$ the `label` which is $1$ if the i-th person is healthy and $-1$ if not.\\
+$\omega$ has the property: $w\cdot x_i > 0$ if $x_i$ is the data vector of a healthy person and $w\cdot x_i<0$ if not.\\
+
+\subsection{Pagerank} 
+
+The PageRank algorithm orders all nodes of a graph by their `importance` and gives them an according value.
+On https://ci.apache.org/projects/flink/flink-docs-release-0.8.1/examples.html the following can be found about the PageRank algorithm:\\\\
+`The PageRank algorithm computes the “importance” of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.`\\\\
+The `pages` in our case are genes. So by applying the PageRank algorithm to our data to both subgroups, healthy and diseased, seperately, we get information on which are the most `important` genes in one group.\\
+The network we run PageRank on is the following: Each gene is represented by a node and there is an (unweighted and undirected) edge between two genes $k$ and $l$ if the absolute value of the correlation coefficient of the k-th and l-th column of the data matrix is higher than a certain threshold. A high correlation coefficient hints that a frequent occurance of one gene in the genom of a body leads to a high occurance of the other or vice versa.
+
+
+\subsection{Community Detection}
+The Community Detection algorithm is, as is the PageRank algorithm, part of the GellyAPI provided by Flink. It finds clusters, i.e. isolated or almost isolated components inside a network / graph. Applying it also both to the network built from the data from healthy people and diseased people we learn about which genes are `linked` to each other. That could mean, if one gene has e.g. a lower occurance than usual than the same is likely to hold for exactly the genes that are in the same cluster.
+ 
+
+
+\section{The Pipeline}
+
+ 
+
+    Nutzer Argumente eingben\\
+    The user can specify all parameters that occur in the pipeline beforehand. They can have influence on the speed and the results of the workflow.\\
+
+    File paths\\
+    The pipeline uses several temporary files. That means, at some points during the workflow data is stored in .txt-files in a certain format and is read at a later point in time. In total, 12 temporary files are created. They can be found in the (then newly created) `Output/Temp`-folder in the directory where the data is stored as well. The results that the user is more interested in are stored the `Output/Final`-folder.\\
+    
+    
+    Output jetzt schon beschreiben:\\
+    
+    
+    data als matrix speichern. Genliste erstellen und dann Werte den Genen zuweisen 
+
+    matrix completion (optional) 
+
+    SVM 
+
+    Zu klassifizierende Daten einlesen und classifier anwenden 
+
+    Network: Korrelation. Fürs Tempo: Erst Means und variances ausrechnen 
+
+    Network in txt-file schreiben 
+
+    PagerankBasic und GellyAPI 
+
+     
+\end{document}
