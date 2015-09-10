@@ -4,6 +4,8 @@ package de.fuberlin.de.largedataanalysis
 
 import java.io.{File, FileWriter}
 
+import scala.util.Try
+
 
 object Tools {
 
@@ -50,6 +52,17 @@ object Tools {
     }
   }
 
+  def countFiles_Filter(dir: String): Int = {
+    val files = getListOfFiles(dir)
+    var counter = 0
+    for ( f <- files){
+      if(f.getName.contains("mirna.qua") || f.getName.contains("rsem.genes.no")){
+        counter = counter + 1
+      }
+    }
+    return counter
+  }
+
 
   def mergeCountLists(counts: List[Double], genes: List[String], allGenes: List[String]): Array[Double] = {
 
@@ -68,7 +81,19 @@ object Tools {
     return extended_testperson_counts
   }
 
+  def readDoubleFromSentence(line: String,seperator: String): Double = {
 
+    val words = line.split(seperator)
+    val nums = words.map(c => Try(c.toDouble))
+    var returnnumber = 0d
+    for (l <- nums){
+      if (l.isSuccess){
+        returnnumber =  l.get
+        return returnnumber
+      }
+    }
+    return returnnumber
+  }
 
 
 }
