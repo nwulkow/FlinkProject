@@ -113,7 +113,7 @@ object PageRankBasicForPipeline {
       // execute program
       env.execute("Basic PageRank Example")
     } else {
-      result.print()
+      //result.print()
     }
 
 
