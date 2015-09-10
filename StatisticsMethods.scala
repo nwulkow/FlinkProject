@@ -131,7 +131,7 @@ object StatisticsMethods {
 
     for (i <- Range(0,(distanceList.length))) {
       if (i < 10) {
-        println("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
+        //println("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
       }
       pw_ranks.write("Gene: " + distanceList(i)._1 + " , rank difference: " + distanceList(i)._2)
       pw_ranks.write("\n")
@@ -149,7 +149,8 @@ object StatisticsMethods {
     val gdf_file = new FileWriter(new File(gdfpath))
     gdf_file.write("nodedef>name VARCHAR, rank DOUBLE, label VARCHAR")
     gdf_file.write("\n")
-    val rankscollect = ranks.collect()
+    var rankscollect = ranks.collect()
+    rankscollect = rankscollect.sortBy(r => r.rank)
 
     for (page <- rankscollect) {
       gdf_file.write(page.pageId + "," +  page.rank + "," + allGenes(page.pageId.toInt - 1))
