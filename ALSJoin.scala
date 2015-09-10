@@ -97,7 +97,6 @@ Option[String]) extends ALSFlinkAlgorithm with Serializable {
           fullMatrix.data(counter*factors + counter) += lambda.asInstanceOf[ElementType] * n
           counter += 1
         }
-
         col.collect(new Factors(uID, Solve.solvePositive(fullMatrix, vector).data))
       }
     }//.withConstantSet("0")
@@ -159,9 +158,9 @@ object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings {
 
         val resultmatrix = mult(usermatrix,itemmatrix)
 
-        printMatrix(itemmatrix)
-        printMatrix(usermatrix)
-        printMatrix(resultmatrix)
+        Tools.printMatrix(itemmatrix)
+        Tools.printMatrix(usermatrix)
+        Tools.printMatrix(resultmatrix)
 
 
       }
@@ -217,27 +216,18 @@ object ALSJoin extends ALSFlinkRunner with ALSFlinkToyRatings {
 
     val resultmatrix = mult(usermatrix,itemmatrix)
 
-    //printMatrix(itemmatrix)
-    //printMatrix(usermatrix)
-    //printMatrix(resultmatrix)
+    //Tools.printMatrix(itemmatrix)
+    //Tools.printMatrix(usermatrix)
+    //Tools.printMatrix(resultmatrix)
     val file = "/home/mi/nwulkow/ADL/Projekt/Data/miRNASeq/BCGSC__IlluminaHiSeq_miRNASeq/Level_3/completed"
-    Tools.writeMatrixToCSV(resultmatrix, new FileWriter((file)))
+    //Tools.writeMatrixToCSV(resultmatrix, new FileWriter((file)))
     return resultmatrix
 
-    //return Array[Array[Double]]()
   }
 
 
 
-  def printMatrix(matrix: Array[Array[Double]]){
-    for (i <- Range(0,matrix.length)) {
-      for (j <- Range(0, matrix(0).length)) {
 
-        print(matrix(i)(j) + "  ")
-      }
-      println()
-    }
-  }
 
 
   // Kopiert von http://rosettacode.org/wiki/Matrix_multiplication
