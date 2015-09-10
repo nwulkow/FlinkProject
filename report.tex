@@ -70,11 +70,12 @@ Further, there is a lot of programming source code available for free on GitHub 
  
 
 \subsection{MATRIX COMPLETION: }
+\label{matrixcompletion_algo}
 
   
 
 Matrix completion is a topic that has come up only a few years ago. It adresses the attempt to figure out all entries of a matrix even if only a certain fraction of them is given. Different algorithms have been developed that tackle this problem and one of them has already been implemented in Scala. Here is a description of the algorithm, taken from https://ci.apache.org/projects/flink/flink-docs-master/libs/ml/als.html: \\\\
-`The alternating least squares (ALS) algorithm factorizes a given matrix $R$ into two factors $U$ and $V$ such that $R\approx UV$. The unknown row dimension is given as a parameter to the algorithm and is called latent factors. Since matrix factorization can be used in the context of recommendation, the matrices U and V can be called user and item matrix, respectively. The i-th column of the user matrix is denoted by $u_i$ and the i-th column of the item matrix is $v_i$. The matrix $R$ can be called the ratings matrix with $R_{ij} =r_{ij}$.\\
+`The alternating least squares (ALS) algorithm factorizes a given matrix $R$ into two factors $U$ and $V$ such that $R\approx UV$. The unknown row dimension is given as a parameter to the algorithm and is called latent factors. Since matrix factorization can be used in the context of recommendation, the matrices U and V can be called user and item matrix, respectively. The i-th column of the user matrix is denoted by $u_i$ and the i-th column of the item matrix is $v_i$. The matrix $R$ can be called the ratings matrix with $R_{ij} =r_{ij}$.\\
 In order to find the user and item matrix, the following problem is solved: 
 
 $ argmin_{U,V} \sum_{i,j\mid r_{ij} \neq0}(r_{ij}−u_i v_j)^{2}+\lambda(\sum_i \Vert u_i\Vert ^{2}+\sum_j \Vert v_j \Vert ^{2}) $
@@ -93,6 +94,7 @@ Matrix completion can be useful for our pipeline, since real data is far from pe
  
 
 \subsection{SVM}
+\label{svm}
 
 SVM (Support Vector machines) is a mathematical method that can be used to seperate datapoints into two sets by a hyperplane. They describe an optimization problem whose solution classifies of certain points into one group and the remaining points into the other group. The solution itself is a vector whose dimension equal the dimension of a datapoint. The optimization problems are made in a way such that an entry of that result vector, the 'classifier', has a high value if and only if there are big differences among classes regarding that particular entry. 
 
@@ -105,11 +107,12 @@ $\omega$ has the property: $w\cdot x_i > 0$ if $x_i$ is the data vector of a hea
 
 \subsection{Pagerank} 
 
-The PageRank algorithm orders all nodes of a graph by their `importance` and gives them an according value.
-On https://ci.apache.org/projects/flink/flink-docs-release-0.8.1/examples.html the following can be found about the PageRank algorithm:\\\\
+The PageRank algorithm orders all nodes of a graph by their `importance` and gives them an according value.\\
+On https://ci.apache.org/projects/flink/flink-docs-release-0.8.1/\\
+examples.html the following can be found about the PageRank algorithm:\\\\
 `The PageRank algorithm computes the “importance” of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.`\\\\
 The `pages` in our case are genes. So by applying the PageRank algorithm to our data to both subgroups, healthy and diseased, seperately, we get information on which are the most `important` genes in one group.\\
-The network we run PageRank on is the following: Each gene is represented by a node and there is an (unweighted and undirected) edge between two genes $k$ and $l$ if the absolute value of the correlation coefficient of the k-th and l-th column of the data matrix is higher than a certain threshold. A high correlation coefficient hints that a frequent occurance of one gene in the genom of a body leads to a high occurance of the other or vice versa.
+The network we run PageRank on is the following: Each gene is represented by a node and there is an (unweighted and undirected) edge between two genes $k$ and $l$ if the absolute value of the correlation coefficient of the k-th and l-th column of the data matrix ($p(k,l)$) is higher than a certain threshold. A high correlation coefficient hints that a frequent occurance of one gene in the genom of a body leads to a high occurance of the other or vice versa.
 
 
 \subsection{Community Detection}
@@ -121,21 +124,65 @@ The Community Detection algorithm is, as is the PageRank algorithm, part of the 
 
  
 
-    Nutzer Argumente eingben\\
-    The user can specify all parameters that occur in the pipeline beforehand. They can have influence on the speed and the results of the workflow.\\
+\subsection{User arguments}
+    The user can specify all parameters that occur in the pipeline beforehand. They can have influence on the speed and the results of the workflow. Those parameters are:
+\begin{itemize}
+\item Decide whether matrix completion is done or not
+\item The number of factors that are used in the matrix completion algorithm
+\item Number of iterations of Matrix Completion algorithm
+\item Number of iterations of SVM algorithm
+\item SVM regularization constant
+\item SVM algorithm stepsize
+\item Maximal number of Genes that is considered. If the user selects $k$ as the maximal number of genes and the data contains more than k genes then only the first $k$ genes from every blood probe are considered
+\item The threshold for the network construction. An edge is put between two nodes $k$ and $l$ if the correlation coefficient $p(k,l)$ is higher than that threshold
+\item Names of genes that are not to be considered
+\end{itemize}
 
-    File paths\\
-    The pipeline uses several temporary files. That means, at some points during the workflow data is stored in .txt-files in a certain format and is read at a later point in time. In total, 12 temporary files are created. They can be found in the (then newly created) `Output/Temp`-folder in the directory where the data is stored as well. The results that the user is more interested in are stored the `Output/Final`-folder.\\
-    
-    
-    Output jetzt schon beschreiben:\\
-    
-    
-    data als matrix speichern. Genliste erstellen und dann Werte den Genen zuweisen 
+\subsection{Input}
+The pipeline needs the path to the directory where the data is stored. The data of each groups must be stored in two different folders. More information on that in the user description file.
 
-    matrix completion (optional) 
+\subsection{Output}
+The output consists of 15 .txt-files. Seven of those contain information that the user of the pipeline might be interested in, i.e.:
+\begin{itemize}
+\item The classifier (genes with corresponding weights; ordered)
+\item Result of the classification of unknown data
+\item The PageRank and Community Detection results for both the healthy and diseased group stored in a .gdf-file which can be read by the software `Gephi`
+\item A `rank differences` file I will give information about later on in this article
+\end{itemize}
+ The remaining eight documents are temporary files that are used during the workflow: Sometimes data has to be parsed into a different format. To that end, it is written into .txt-files in the according style and read back into the pipeline at a later point in time.\\
+The data that is meant here is:
+\begin{itemize}
+\item The data matrix before matrix completion since the matrix completion algorithm needs input-files
+\item The output of the matrix completion algorithm
+\item The network and nodes of both the healthy and the diseased group
+\item The data matrix stored in a way such that the SVM method can use it
+\end{itemize}
 
-    SVM 
+
+\subsection{Reading The Data}
+The first true step of the workflow is to read the data that it is supposed to work with. Under certain conditions, that can be an easy process. But as we do not know about the quality of our data we have to put in more effort to do that. As we want to keep alive the chance to apply matrix completion on the data, the data is parsed into a matrix.\\
+The problem is: We cannot be sure that every file that we read data from contains information on the same genes. So we can't simply read in the data from a file and store it in a row of the matrix.\\
+What is hence done in the pipeline is the following: First of all a list of all genes that occur in the whole of the data is created. The list starts with all genes from the first file. If a new gene occurs in another file it is appended to the back end of the list.\\
+Afterwards we look through the data files for a second time: We consider a gene with corresponding value $v$, look for the index $i$ of that gene ID in the gene list and store $v$ in the i-th column (and according row) of the data matrix.\\
+Also, the matrix is stored in a .txt-file in csv-format to be used by the matrix completion algorithm. As explained earlier, only files that have the correct ending (`mirna.quantification` for miRNA and `rsem.genes.normalized\_results` for mRNA) are used.\\
+If the user has fixed a maximal number $k$ of genes, we continue with only the first $k$ columns of the matrix.
+
+\subsection{Matrix Completion}
+Matrix completion is optional. The user can decide for or against it in the programming arguments.\\\\
+The output of the algorithm are .txt-files that contain the rows of the matrix factors $U$ and $V$ (see \ref{matrixcompletion_algo}). Those factors have to be read from the output files. Eventually matrix multiplication of the two factors with each other needs to be done.\\
+The resulting matrix then has the same format as the matrix that the matrix completion algorithm was fed with.
+
+
+\subsection{SVM}
+In order to apply an SVM method the data needs to be stored in a complety different format. The only way I found in which I can parse it into that format is the indirect way of writing it into another .txt-file in a certain way and then apply a common reading-method.\\
+The SVM method needs each row of the data matrix as a vector with a corresponding `label`. The label is $1$ if the data vector belongs to a healthy person and $-1$ if it belongs to a diseased person.\\
+\subsubsection{Training}
+After doing the SVM on the data, the result we get is the classifier that carries the weights of all genes. It partly depends on the tuning of the parameters.
+\subsubsection{Testing}
+In the next step, we apply the classifier to data. We can classify people whose healthy is unknown to us (or simply test the accuracy of the classifier if we do know about the health) by looking at the scalar product of the classifier and the data vector (see \ref{svm}).\\
+The results of the classification and the classifier are then stored in a .txt-file.\\
+For the read in of that data we proceed the same way as during the read in of the training data.
+
 
     Zu klassifizierende Daten einlesen und classifier anwenden 
 
