@@ -122,7 +122,7 @@ public class GellyAPI_clean {
 
     public static void writeGDFFile_Clusters(String network_path, DataSet<Vertex<Long, Long>> clusters, String[] allGenes, String gdfpath) throws Exception {
 
-        ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         List<Edge<Long,Double>> network = getEdgesDataSet(env, network_path).collect();
 
 
@@ -148,6 +148,7 @@ public class GellyAPI_clean {
 
             bw.write("edgedef>node1 VARCHAR, node2 VARCHAR");
             bw.write("\n");
+
             for (int i = 0; i < network.size(); i++){
                 Edge<Long,Double> current = network.get(i);
                 bw.write(current.getSource().intValue() + "," + current.getTarget().intValue());
