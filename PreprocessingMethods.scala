@@ -94,6 +94,7 @@ object PreprocessingMethods {
     var data = Pipeline.readmiRNA(env, path, Array(nameindex, countindex))
     data = data.filter{ c => c.ID.contains("?") == false}
     data = data.filter{c =>  c.count.contains("count") == false}
+    data = data.filter{c =>  c.count.contains("reads") == false}
     // Bestimmte Gene ausschließen
     for (gene <- excludesGenes) {
       data = data.filter { c => c.ID.equals(gene) == false }
@@ -130,7 +131,8 @@ object PreprocessingMethods {
     var numberOfFiles = 0
     for (path <- path_list) {
 
-      val files = Tools.getListOfFiles(path)
+      var files = Tools.getListOfFiles(path)
+      files = files.filter(f => f.getName.contains("mirna.qua") || f.getName.contains("rsem.genes.no"))
 
       for (i <- Range(0, files.length)) {
         val path_short = path + "/" + files(i).getName
@@ -149,8 +151,8 @@ object PreprocessingMethods {
     var rownumber = 0
 
     for (path <- path_list) {
-
-      val files = Tools.getListOfFiles(path)
+      var files = Tools.getListOfFiles(path)
+      files = files.filter(f => f.getName.contains("mirna.qua") || f.getName.contains("rsem.genes.no"))
       if (label == 1) {
         for (j <- Range(0, allstrings.length)) {
           matrix(rownumber)(j) = allCounts(rownumber)(j)
@@ -159,8 +161,7 @@ object PreprocessingMethods {
         }
         rownumber += 1
       }
-
-      for (k <- Range(1, files.length + 1)) {
+      for (k <- Range(1, files.length )) {
 
         if (k == files.length && label == -1) {
 
