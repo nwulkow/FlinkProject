@@ -30,13 +30,17 @@ object Pipeline {
   var SVM_iterations: Int = 100
   var SVM_stepsize: Double = 0.01
   var SVM_regularization: Double = 0.01
-  var threshold: Double = 0.8
+  var threshold: Double = 0.9
   var noSelectedGenes: Int = 500
   var corrMatrixCompletionBool = false
   var trainingType : String = "SVM"
   var maxGenes = 1050
 
+  var path_healthy = ""
+  var path_diseased = ""
+
   def main(args: Array[String]) {
+
 
     // -------------------------------------------------------
     // Parameter einlesen
@@ -46,7 +50,6 @@ object Pipeline {
     // -------------------------------------------------------
 
     applyAdditionalInput(additional_input)
-
 
 
     // -------------------------------------------------------
@@ -64,8 +67,7 @@ object Pipeline {
     val pw = new FileWriter(new File(outputPath_SVM))
 
     // PFAD zu den Dateien, (also nicht zu einem einzelnen File!)
-    val path_healthy = path + "/Healthy"
-    val path_diseased = path + "/Diseased"
+
 
 
     // Pfade und FileWriter für einige temporäre Dateien:
@@ -80,38 +82,34 @@ object Pipeline {
     val network_matrix_diseased_path = temp_outputpath + "/network_matrix_diseased"
     val network_nodes_healthy_path = temp_outputpath + "/network_nodes_healthy"
     val network_nodes_diseased_path = temp_outputpath + "/network_nodes_diseased"
-    val network_gdf_healthy = final_outputpath + "/gdf_pageranks_healthy"
-    val network_gdf_diseased = final_outputpath + "/gdf_pageranks_diseased"
+    val network_gdf_healthy = final_outputpath + "/gdf_pageranks_healthy.gdf"
+    val network_gdf_diseased = final_outputpath + "/gdf_pageranks_diseased.gdf"
 
     val cluster_file_path = temp_outputpath + "/cluster"
-    val cluster_gdf_healthy = final_outputpath + "/gdf_clusters_healthy"
-    val cluster_gdf_diseased = final_outputpath + "/gdf_clusters_diseased"
+    val cluster_gdf_healthy = final_outputpath + "/gdf_clusters_healthy.gdf"
+    val cluster_gdf_diseased = final_outputpath + "/gdf_clusters_diseased.gdf"
 
     val ranks_diffs_path = final_outputpath + "/rank_differences"
 
     val pw_incompletematrix = new FileWriter(new File(incompletematrix_path))
     val pw_resultlabels = new FileWriter(new File(resultlabels_path))
 
-    val corrMatrix_path_healthy = temp_outputpath + "/corrMatrix_healthy"
-    val corrMatrix_path_diseased = temp_outputpath + "/corrMatrix_diseased"
 
     // -------------------------------------------------------
     // Vorbereitung der Matrix Completion. Reihen sind die verschiedenen Personen, Spalten die Genecounts
-    val numberHealthy = Tools.getListOfFiles(path_healthy).length
-    val numberDiseased = Tools.getListOfFiles(path_diseased).length
+    val numberHealthy = Tools.countFiles_Filter(path_healthy)
+    val numberDiseased = Tools.countFiles_Filter(path_diseased)
     println("-------------- Reading In The Data ----------------")
     val matrixAndGenes = PreprocessingMethods.matrixCreation(Array[String](path_healthy, path_diseased), pw_incompletematrix, excludesGenes, maxGenes)
     var incompleteMatrix = matrixAndGenes._1
     val allGenes = matrixAndGenes._2
     val numberPeople = numberHealthy + numberDiseased
     val numberGenes = allGenes.length
-    println("numberGenes = " + numberGenes)
     // allGenes als Array[String]
     val allGenes_string = new Array[String](numberGenes)
     for (i <- Range(0, numberGenes)){
       allGenes_string(i) = allGenes(i)
     }
-
     // -------------------------------------------------------
     /*val densematrix = DenseMatrix.zeros[Double](numberPeople,numberGenes)
     for (i<- Range(0,numberPeople)) {
@@ -122,7 +120,7 @@ object Pipeline {
     */
     if (matrixBool == true) {
       println("-------------- Doing Matrix Completion On The Data ----------------")
-      incompleteMatrix = ALSJoin.doMatrixCompletion(incompletematrix_path, MC_factors, MC_iterations, 42, Some("dummy string"), path, numberPeople, numberGenes)
+      incompleteMatrix = ALSJoin.doMatrixCompletion(incompletematrix_path, MC_factors, MC_iterations, 42, Some("dummy string"), temp_outputpath.toString(), numberPeople, numberGenes)
     }
     // Die Zeilen der vervollständigten Matrix umwandeln in 'LabeledVectors'
     matrixaslist = PreprocessingMethods.preprocessdataFromMatrix(incompleteMatrix, numberHealthy, pw, matrixaslist)
@@ -140,7 +138,7 @@ object Pipeline {
       val svm = SVM()
         .setBlocks(env.getParallelism)
         .setIterations(SVM_iterations)
-        .setRegularization(0.001)
+        .setRegularization(SVM_regularization)
         .setStepsize(SVM_stepsize)
         .setSeed(42)
 
@@ -154,18 +152,6 @@ object Pipeline {
 
     else {
 
-      /*  val mlr = MultipleLinearRegression()
-          .setStepsize(1.0)
-          .setIterations(100)
-          .setConvergenceThreshold(0.001)
-        mlr.fit(svmData)
-        val weightList_collect = mlr.weightsOption.get.collect()
-        println("jetzt hier")
-        val WeightVector(weightsList, intercept) = weightList_collect(0)
-        println("HABE DIE GEWICHTE")
-
-  */
-      //val svmData2 = svmData.map(c => c.vector)
 
       val regression = MultipleLinearRegression()
       // set parameter for the regression
@@ -208,9 +194,6 @@ object Pipeline {
     }
     pw_resultlabels.close()
 
-    for (s <- scalarproducts) {
-      println("scalarproduct = " + s.toString)
-    }
 
     // -------------------------------------------------------
 
@@ -226,23 +209,12 @@ object Pipeline {
     for (k <- Range(0,numberGenes)){
       val correspondingGeneIndex = weightsListCopy.indexOf(sortedweights(allGenes.length - 1 - k))
       genesWithWeights ::= (allGenes(correspondingGeneIndex), sortedweights(allGenes.length - 1 - k))
-      weightsListCopy(correspondingGeneIndex) = Math.exp(1000) // Sicherstellen, dass kein Gen doppelt in der Liste auftaucht (wenn mehrere Gene das gleiche Gewicht haben)
+      weightsListCopy(correspondingGeneIndex) = Math.exp(1000+Math.random()) // Sicherstellen, dass kein Gen doppelt in der Liste auftaucht (wenn mehrere Gene das gleiche Gewicht haben)
     }
     Tools.writeGenesWithWeights(genesWithWeights, genesWithWeights_path)
 
-/*    for (k <- Range(0, numberOfTopGenes)) {
-      var correspondingGeneIndex = weightsList(0).toArray.indexOf(sortedweights(k))
-      topNegativeWeights ::=(allGenes(correspondingGeneIndex), sortedweights(k))
-      correspondingGeneIndex = weightsList(0).toArray.indexOf(sortedweights(allGenes.length - 1 - k))
-      topPositiveWeights ::=(allGenes(correspondingGeneIndex), sortedweights(allGenes.length - 1 - k))
-    }
-
-    println("top negative weights : " + topNegativeWeights.reverse)
-    println("top positive weights : " + topPositiveWeights.reverse)
-*/
 
 
-    // -------------------------------------------------------
     // -------------------------------------------------------
     // -------------------------------------------------------
 
@@ -251,7 +223,7 @@ object Pipeline {
     // Korrelationswerte berechnen und schreiben
 
 
-    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path_ranks: String, gdf_path_cluster: String, corrMatrix_path: String): DataSet[Page] = {
+    def doNetworkAnalysisAndGDFFIle(matrixaslist: List[List[Double]], path_matrix: String, path_nodes: String, gdf_path_ranks: String, gdf_path_cluster: String): DataSet[Page] = {
 
 
       var meansList = List[Double]()
@@ -263,7 +235,6 @@ object Pipeline {
 
       val pw_matrix = new FileWriter(path_matrix)
       val pw_nodes_file = new FileWriter(path_nodes)
-      val pw_corrMatrix = new FileWriter(corrMatrix_path)
 
       var network = List[Array[Double]]() // Netzwerk wird gespeichert, um später ein GDF-File zu erzeugen
 
@@ -282,77 +253,16 @@ object Pipeline {
 
       val selectedGeneIndices = Random.shuffle(indices.toList).take(noSelectedGenes)
 
-      //var corrMatrix = Array.ofDim[Double](noGenes, noGenes)
-     /* var matrixInXY = List[(Int, Int, Double)]()
 
-      for (j <- Range(0, noGenes)) {
-        //corrMatrix(j)(j) = 1d
-        matrixInXY = (j, j, 1d) :: matrixInXY
-
-        pw_corrMatrix.write(j + "," + j + "," + 1)
-        pw_corrMatrix.write("\n")
-        for (h <- Range(j, noSelectedGenes)) {
-          val corrValue = StatisticsMethods.correlationcoefficient(matrixaslistTranspose(noGenes - 1 - j), matrixaslistTranspose(noGenes - 1 - selectedGeneIndices(h)), varianceList(noGenes - 1 - j), varianceList(noGenes - 1 - selectedGeneIndices(h)))
-          //corrMatrix(j)(selectedGeneIndices(h)) = corrValue
-          if (corrValue.isInfinity == false && corrValue.isNaN == false) {
-            matrixInXY = (j, selectedGeneIndices(h), corrValue) :: matrixInXY
-            pw_corrMatrix.write(j + "," + selectedGeneIndices(h) + "," + corrValue)
-            pw_corrMatrix.write("\n")
-          }
-        }
-      }
-      pw_corrMatrix.close()
-
-      if (corrMatrixCompletionBool == true) {
-        matrixInXY = List[(Int, Int, Double)]()
-        val corrMatrix = ALSJoin.doMatrixCompletion(corrMatrix_path, 10, 100, 42, Some("dummy string"), path, noGenes, noGenes)
-        for (i <- Range(0, noGenes)) {
-          for (j <- Range(0, noGenes)) {
-            matrixInXY = (i, j, corrMatrix(i)(j)) :: matrixInXY
-          }
-        }
-      }
-
-      for (i <- Range(0, matrixInXY.length)) {
-        val current = matrixInXY(i)
-        if (current._3 > threshold) {
-          pw_matrix.write((current._1 + 1).toString + " " + (current._2 + 1).toString + " " + 1.toString)
-          pw_matrix.write("\n")
-          pw_matrix.write((current._2 + 1).toString + " " + (current._2 + 1).toString + " " + 1.toString)
-          pw_matrix.write("\n")
-          network = Array[Double](current._1, current._2) :: network
-          network = Array[Double](current._2, current._1) :: network
-        }
-      }
-*/
-    /*    for (j <- Range(0, noGenes)) {
-          println(" j = " + j)
-          pw_nodes_file.write((j + 1).toString + " " + ((j + 1)).toString) //Knoten-Nummer mit Cluster-Nummer (beide gleich)
-          pw_nodes_file.write("\n")
-
-          for (h <- Range(j, noGenes)) {
-            if (corrMatrix(j)(h) > threshold) {
-              pw_matrix.write((j + 1).toString + " " + (h + 1).toString + " " + 1.toString)
-              pw_matrix.write("\n")
-              pw_matrix.write((h + 1).toString + " " + (j + 1).toString + " " + 1.toString)
-              pw_matrix.write("\n")
-              network = Array[Double](j, h) :: network
-              network = Array[Double](h, j) :: network
-            }
-          }
-
-        }*/
       var network_string_list = List[String]()
       var network_string = ""
-      val t1 = System.currentTimeMillis()
          for (j <- Range(0, noGenes)) {
-            println(" j = " + j)
             pw_nodes_file.write((j+1).toString + " " +  ((j+1)).toString) //Knoten-Nummer mit Cluster-Nummer (beide gleich)
             pw_nodes_file.write("\n")
             val j_line = matrixaslistTranspose(noGenes - 1 - j)
             for (h <- Range(j, noSelectedGenes)) {
-
-              if (threshold < Math.abs(StatisticsMethods.correlationcoefficient(j_line, matrixaslistTranspose(noGenes - 1 - h),varianceList(j), varianceList(h)))) {
+              val corr = Math.abs(StatisticsMethods.correlationcoefficient(j_line, matrixaslistTranspose(noGenes - 1 - h),varianceList(j), varianceList(h)))
+              if (threshold < corr && !corr.isInfinite && !corr.isNaN) {
                 pw_matrix.write((j+1).toString + " " + (h+1).toString + " " + 1.toString)
                 pw_matrix.write("\n")
                 pw_matrix.write((h+1).toString + " " + (j+1).toString + " " + 1.toString)
@@ -361,15 +271,10 @@ object Pipeline {
                 network = Array[Double](h, j) :: network
 
                 network_string_list =  (((j+1).toString + "," + (h+1).toString) + "\n" + ((h+1).toString + "," + (j+1).toString) + "\n") :: network_string_list
-                /*pw_matrix_temp.write("\n")
-                pw_matrix_temp.write((h+1).toString + "," + (j+1).toString)
-                pw_matrix_temp.write("\n")*/
+
             }
           }
       }
-    val t2 = System.currentTimeMillis()
-
-      println("time needed = " + (t2 -t1))
 
         // FileWriter schließen
         pw_matrix.close()
@@ -380,7 +285,7 @@ object Pipeline {
 
         // Community Detection Algorithm. Ordnet die einzelnen Gene Clustern zu
         val clusters = GellyAPI_clean.doClusterDetection(network_nodes_healthy_path, network_matrix_healthy_path, cluster_file_path)
-        GellyAPI_clean.writeGDFFile_Clusters(path_matrix, clusters, allGenes_string, gdf_path_cluster, network_string)
+        GellyAPI_clean.writeGDFFile_Clusters(path_matrix, clusters, allGenes_string, gdf_path_cluster)
 
         return pageranks
       }
@@ -388,8 +293,8 @@ object Pipeline {
     println("-------------- Doing Network Analysis ----------------")
 
     var (matrixaslistDiseased, matrixaslistHealthy) = matrixaslist.splitAt(numberDiseased)
-    val pageranks_healthy =  doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy, cluster_gdf_healthy, corrMatrix_path_healthy)
-    val pageranks_diseased =  doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased, cluster_gdf_diseased, corrMatrix_path_diseased)
+    val pageranks_healthy =  doNetworkAnalysisAndGDFFIle(matrixaslistHealthy, network_matrix_healthy_path, network_nodes_healthy_path, network_gdf_healthy, cluster_gdf_healthy)
+    val pageranks_diseased =  doNetworkAnalysisAndGDFFIle(matrixaslistDiseased, network_matrix_diseased_path, network_nodes_diseased_path, network_gdf_diseased, cluster_gdf_diseased)
 
     StatisticsMethods.rank_differences(pageranks_healthy,pageranks_diseased, allGenes, ranks_diffs_path)
 
@@ -410,13 +315,25 @@ object Pipeline {
   private var testFiles_path = ""
   private var additional_input = ""
   private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
+    if (args.length == 4) {
       path = args(0)
       excludesGenes = args(1).split(",")
       testFiles_path = args(2)
       additional_input = args(3)
+      path_healthy = path + "/Healthy"
+      path_diseased = path + "/Diseased"
       true
-    } else {
+    }
+      else if (args.length == 6){
+      path_healthy = args(0)
+      path_diseased = args(1)
+      path = args(2)
+      excludesGenes = args(3).split(",")
+      testFiles_path = args(4)
+      additional_input = args(5)
+      true
+    }
+    else {
       false
     }
   }
@@ -440,7 +357,7 @@ object Pipeline {
 
     for (i <- lines){
       if ( i.contains("factors")) {
-        MC_factors = numPattern.findFirstIn(i).get.toString.toInt
+        MC_factors = Tools.readDoubleFromSentence(i," ").toInt
       }
       else if (i.contains("networkpath")){
         val networkpath = i.split(" = ")(1)
@@ -451,28 +368,28 @@ object Pipeline {
         else matrixBool = false
       }
       else if (i.contains("completion") && i.contains("regularization")){
-        MC_iterations = numPattern.findFirstIn(i).get.toString.toInt
+        MC_iterations = Tools.readDoubleFromSentence(i," ").toInt
       }
       else if (i.contains("SVM") && i.contains("iterations")){
-        SVM_iterations = numPattern.findFirstIn(i).get.toString.toInt
+        SVM_iterations = Tools.readDoubleFromSentence(i," ").toInt
       }
       else if (i.contains("SVM") && i.contains("regularization")){
-        SVM_regularization = numPattern.findFirstIn(i).get.toString.toDouble
+        SVM_regularization = Tools.readDoubleFromSentence(i," ")
       }
       else if (i.contains("SVM") && i.contains("stepsize")){
-        SVM_stepsize = numPattern.findFirstIn(i).get.toString.toDouble
+        SVM_stepsize = Tools.readDoubleFromSentence(i," ")
       }
       else if (i.contains("threshold") || i.contains("thresshold")){
-        threshold = numPattern.findFirstIn(i).get.toString.toDouble
+        threshold = Tools.readDoubleFromSentence(i," ")
       }
       else if (i.contains("selected") && (i.contains("genes") || i.contains("Genes"))){
-        noSelectedGenes = numPattern.findFirstIn(i).get.toString.toInt
+        noSelectedGenes = Tools.readDoubleFromSentence(i," ").toInt
       }
       else if (i.contains("train") && i.contains("linear") && i.contains("regression")){
         trainingType = "LR"
       }
       else if (i.contains("maxGenes") || i.contains("Genanzahl")){
-        maxGenes = numPattern.findFirstIn(i).get.toString.toInt
+        maxGenes = Tools.readDoubleFromSentence(i," ").toInt
       }
     }
 
