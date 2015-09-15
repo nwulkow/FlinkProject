@@ -34,25 +34,16 @@ OPTION 1:
     'number of SVM iterations is 100' or 'threshold = 0.8'. Sentences have to be seperated by the word 'STOP'. At the start
     and end of it there have to be quotation marks. If you leave out one parameter, a default value will be used.
     Here is how to specify every parameter:
-    Parameter				Key words that must occur	Default value<br />
-    do matrix completion		completion, yes			true<br />
-    matrix completion factors		factors				10<br />
-    matrix completion iterations	completion, iterations		100<br />
-    SVM iterations			SVM, iterations			100<br />
-    SVM regularization			SVM, regularization		0.01<br />
-    SVM stepsize			SVM, stepsize			0.01<br />
-    network threshold			threshold			0.9<br />
-    maximal number of genes		maxGenes OR Genanzahl		25000<br />
-    Here is how to specify every parameter:<br />
-    Parameter		|		Key words that must occur |	Default value<br />
-    do matrix completion |		completion, yes |			true<br />
+    Parameter		|		Key words that must occur	|Default value<br />
+    do matrix completion	|	completion, yes		|	true<br />
     matrix completion factors	|	factors		|		10<br />
-    matrix completion iterations |	completion, iterations	|	100<br />
-    SVM iterations	|		SVM, iterations		|	100<br />
-    SVM regularization	|		SVM, regularization	|	0.01<br />
-    SVM stepsize	|		SVM, stepsize		|	0.01<br />
-    network threshold	 |	threshold		|	0.9<br />
-    maximal number of genes	|	maxGenes OR Genanzahl	|	25000<br />
+    matrix completion iterations|	completion, iterations	|	100<br />
+    SVM iterations		|	SVM, iterations		|	100<br />
+    SVM regularization		|	SVM, regularization	|	0.01<br />
+    SVM stepsize		|	SVM, stepsize	|		0.01<br />
+    network threshold		|	threshold		|	0.9<br />
+    maximal number of genes		|maxGenes OR Genanzahl	|	25000<br />
+    Here is how to specify every parameter:<br />
     
     An example input for the program arguments is:<br />
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full/Healthy<br />
@@ -66,9 +57,7 @@ OPTION 1:
 OPTION 2 differs only slightly from OPTION 1:<br />
 Instead of setting the path to the 'healthy' and the 'diseased' folder and the path where the Output-folder shall be created,
 the user enters only one path to a folder that directly contains the 'healthy' and the 'diseased' folder, which must have
-<<<<<<< HEAD
 the names "Healthy" and "Diseased". There the Output-folder is also created.
-=======
 the names "Healthy" and "Diseased". There the Output-folder is also created. <br />
 Example:<br />
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full<br />
