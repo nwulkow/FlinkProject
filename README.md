@@ -1,6 +1,6 @@
 # FlinkProject
-Niklas Wulkow's Flink Project on Biomedical Data analysis
-Analysis Pipeline; written in Scala;
+Niklas Wulkow's Flink Project on Biomedical Data analysis<br />
+Analysis Pipeline; written in Scala;<br />
 Steps of workflow:
   - Read the Data
   - Do Matrix Completion
