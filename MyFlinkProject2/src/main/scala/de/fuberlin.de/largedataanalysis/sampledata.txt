@@ -1,5 +1,0 @@
-bcr_patient_uuid	bcr_patient_barcode	formcompletiondate	healthynutrition	person_neoplasm_cancer_status	histologic_diagnosis	age	retrospective_collection	tobacco_smoking_history_indicator	gender	submitted_tumor_site
-07b5663f-9a54-4462-b6c1-6fc8116b8714	TCGA-44-2655	2010-10-9	9	1	Lung Adenocarcinoma	22	NO	1	FEMALE	LUNG
-36ad7fc7-0cc1-4f01-aef1-f89b3cb4feac	TCGA-46-3254	2010-11-8	5	2	Lung Adenocarcinoma	42	NO	4	MALE	LUNG
-54bd7fc7-6bv12-3f01-aef1-f85b3fb4feac	TCGA-22-1025	2011-02-13	4	4	Lung Adenocarcinoma	30	NO	8	FEMALE	LUNG
-77ad7fc7-0cc1-3f02-aef1-f89f3cb4feac	TCGA-67-9855	2011-03-10	1	5	Lung Adenocarcinoma	67	NO	9	MALE	LUNG
