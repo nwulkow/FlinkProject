@@ -33,16 +33,16 @@ OPTION 1:
     but allow him to choose which he enters the following way: Write a sentence that contains a KEY WORD and a value, e.g.
     'number of SVM iterations is 100' or 'threshold = 0.8'. Sentences have to be seperated by the word 'STOP'. At the start
     and end of it there have to be quotation marks. If you leave out one parameter, a default value will be used.
-    Here is how to specify every parameter:
-    Parameter		|		Key words that must occur	|Default value<br />
+    Here is how to specify every parameter:<br />
+    Parameter		|		Key words that must occur	|	Default value<br />
     do matrix completion	|	completion, yes		|	true<br />
-    matrix completion factors	|	factors		|		10<br />
+    matrix completion factors	|	factors			|	10<br />
     matrix completion iterations|	completion, iterations	|	100<br />
     SVM iterations		|	SVM, iterations		|	100<br />
     SVM regularization		|	SVM, regularization	|	0.01<br />
-    SVM stepsize		|	SVM, stepsize	|		0.01<br />
+    SVM stepsize		|	SVM, stepsize		|	0.01<br />
     network threshold		|	threshold		|	0.9<br />
-    maximal number of genes		|maxGenes OR Genanzahl	|	25000<br />
+    maximal number of genes	|	maxGenes OR Genanzahl	|	25000<br />
     Here is how to specify every parameter:<br />
     
     An example input for the program arguments is:<br />
