@@ -24,7 +24,7 @@ object Pipeline {
   val env = ExecutionEnvironment.getExecutionEnvironment
   var matrixaslist = List[List[Double]]()
 
-  var matrixBool = false
+  var matrixBool = true
   var MC_iterations: Int = 100
   var MC_factors: Int = 10
   var SVM_iterations: Int = 100
@@ -53,7 +53,6 @@ object Pipeline {
 
 
     // -------------------------------------------------------
-
 
     //Pfade für temporäre Dateien
     val outputpath: Path = Path(path + "/Output")
@@ -319,6 +318,15 @@ object Pipeline {
       excludesGenes = args(4).split(",")
       testFiles_path = args(3)
       additional_input = args(5)
+      true
+    }
+    else if (args.length == 5){
+      path_healthy = args(0)
+      path_diseased = args(1)
+      path = args(2)
+      excludesGenes = args(4).split(",")
+      testFiles_path = args(3)
+      additional_input = ""
       true
     }
     else {
