@@ -1,7 +1,4 @@
-# FlinkProject
-<<<<<<< HEAD
 Niklas Wulkow's Flink Project on Biomedical Data analysis
-=======
 Niklas Wulkow's Flink Project on Biomedical Data analysis<br />
 >>>>>>> 7d931bd5c4b65c86aff118d3d0722c076eef064e
 Analysis Pipeline; written in Scala;<br />
@@ -15,14 +12,12 @@ Steps of workflow:
   - Store all results in .txt-files
 
 The Git-repository contains the source code in 'MyFlinkProject2', the results of the pipeline run on miRNA and mRNA data in 'Results' and the report in the main folder.
-The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br />
+The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br/>
 
-<<<<<<< HEAD
-=======
+
 The code can be found in the folder 'MyFlinkProject2'. The code I wrote can be found in the folder
 'src/main/scala/de/fuberlin.de/largedataanalysis' and in 'src/main/java'.
 
->>>>>>> 7d931bd5c4b65c86aff118d3d0722c076eef064e
 USER ARGUMENTS:<br />
 OPTION 1:
   - Path to folder containing files from healthy people
