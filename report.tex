@@ -7,7 +7,7 @@
 \begin{document}
 \firstpage{1}
 
-\title[]{A Workflow for the identification of breast cancer inducing genes}
+\title[]{A workflow for the identification of breast cancer inducing genes}
 \author[Niklas Wulkow]{Niklas Wulkow,$^{1}$
 \footnote{to whom correspondence should be addressed}}
 \address{$^{1}$Freie Universit{\"a}t Berlin}
@@ -55,10 +55,10 @@ are the ones we are interested in. For mRNA, the
 also have to be erased. Fortunately, the entire reading process is done in the pipeline so the user does not have to change anything inside the files. 
 
 \subsection{BIG data}
-An important attribute of the data is its size. Handling mutiple data points with thousand of entries each can provide problems. Running a not well constructed algorithm on the data on a slow computer can take far too long for the user to accept. Due to that, it need to be made sure that the workflow is constructed in a smart and efficient way.\\
-On top of that, there is Flink, an `open source platform for scalable batch and stream data processing` from https://flink.apache.org). It provides methods and network that enables users and developers to work on very large datasets very quickly. Its developers describe it as 'fast, easy to use, reliable, scalable, expressive' and 'hadoop-compatible'. It provides useful `API's` (application programming interfaces) for machine learning and graph analysis that I both incorporated into my pipeline.\\
-It also provides a network cluster which a program can be run on. The program is then supposed to be executed much faster compared to running it on a local machine.\\
-Further, there is a lot of programming source code available for free on GitHub that used Flink-algorithms and is written in Scala, a programming language whose advantage over other programming languages lies in the fact that is can deal with big datasets quicker. Hence, the pipeline was written in Scala.\\
+An important attribute of the data is its size. Handling multiple data points with thousand of entries each can provide problems. Running a not well constructed algorithm on the data on a slow computer can take far too long for the user to accept. Due to that, it needs to be made sure that the workflow is constructed in a smart and efficient way.\\
+On top of that, there is Flink, an `open source platform for scalable batch and stream data processing` (from https://flink.apache.org). It provides methods and a network that enables users and developers to work on very large datasets very quickly. Its developers describe it as 'fast, easy to use, reliable, scalable, expressive' and 'hadoop-compatible'. It provides useful `API's` (application programming interfaces) for machine learning and graph analysis that I both incorporated into my pipeline.\\
+It also provides a network cluster which a program can be run on. The program is then supposed to be executed much faster compared to it being run it on a local machine.\\
+Further, the Flink-algorithms are written in Scala, a programming language whose advantage over other programming languages lies in the fact that it can deal with big datasets quicker. Hence, the pipeline was written in Scala.\\
  
 
  
