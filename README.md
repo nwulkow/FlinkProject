@@ -1,6 +1,4 @@
-Niklas Wulkow's Flink Project on Biomedical Data analysis
 Niklas Wulkow's Flink Project on Biomedical Data analysis<br />
->>>>>>> 7d931bd5c4b65c86aff118d3d0722c076eef064e
 Analysis Pipeline; written in Scala;<br />
 Steps of workflow:
   - Read the Data
