@@ -75,20 +75,20 @@ I have included four Flink-based algorithms into my pipeline: Matrix Completion,
 
   
 
-Matrix completion is a topic that has come up only a few years ago. It adresses the attempt to figure out all entries of a matrix even if only a certain fraction of them is given. Different algorithms have been developed that tackle this problem and one of them has already been implemented in Scala. Here is a description of the algorithm, taken from https://ci.apache.org/projects/flink/flink-docs-master/libs/ml/als.html: \\\\
-`The alternating least squares (ALS) algorithm factorizes a given matrix $R$ into two factors $U$ and $V$ such that $R\approx UV$. The unknown row dimension is given as a parameter to the algorithm and is called latent factors. Since matrix factorization can be used in the context of recommendation, the matrices U and V can be called user and item matrix, respectively. The i-th column of the user matrix is denoted by $u_i$ and the i-th column of the item matrix is $v_i$. The matrix $R$ can be called the ratings matrix with $R_{ij} =r_{ij}$.\\
+Matrix completion is a topic that has come up only a few years ago. It addresses the attempt to figure out all entries of a matrix even if only a certain fraction of them is given. Different algorithms have been developed that tackle this problem and one of them has already been implemented in Scala. Here is a description of the algorithm, taken from https://ci.apache.org/projects/flink/flink-docs-master/libs/ml/als.html: \\\\
+`The alternating least squares (ALS) algorithm factorizes a given matrix $R$ into two factors $U$ and $V$ such that $R\approx UV$. The unknown row dimension is given as a parameter to the algorithm and is called latent factors. Since matrix factorization can be used in the context of recommendation, the matrices U and V can be called user and item matrix, respectively. The i-th column of the user matrix is denoted by $u_i$ and the i-th column of the item matrix is $v_i$. The matrix $R$ can be called the ratings matrix with $R_{ij} =r_{ij}$.\\
 In order to find the user and item matrix, the following problem is solved: 
 
 $ argmin_{U,V} \sum_{i,j\mid r_{ij} \neq0}(r_{ij}−u_i v_j)^{2}+\lambda(\sum_i \Vert u_i\Vert ^{2}+\sum_j \Vert v_j \Vert ^{2}) $
 
-with $\lambda$ being the regularization factor, $u_i$ being the number of items the user i has rated and $v_j$ being the number of times the item j has been rated. This regularization scheme to avoid overfitting is called weighted-$\lambda$-regularization. Details can be found in the work of Zhou et al.. 
+with $\lambda$ being the regularization factor, $u_i$ being the number of items the user i has rated and $v_j$ being the number of times the item j has been rated. This regularization scheme to avoid overfitting is called weighted-$\lambda$-regularization. Details can be found in the work of Zhou et al.. 
 
 By fixing one of the matrices $U$ or $V$, we obtain a quadratic form which can be solved directly. The solution of the modified problem is guaranteed to monotonically decrease the overall cost function. By applying this step alternately to the matrices $U$ and $V$, we can iteratively improve the matrix factorization.`\\\\
 Matrix completion requires the matrix to have a low-rank-structure. The matrix that contains the data (the i,j-th entry of the matrix represents the frequency of the j-th gene in the i-th blood probe) is expected to have low rank or to be close to it, since the concentration of a certain gene in a blood probe should be similar among all healthy respectively all diseased people. 
 
  
 
-Matrix completion can be useful for our pipeline, since real data is far from perfect. Chances are that it is not complete, so that we have to make it complete by guessing what the missing entries are. Therefore, matrix completion is the perfect tool. 
+Matrix completion can be useful for our pipeline, since real data is far from perfect. Chances are that it is not complete, so that we have to make it complete by guessing what the missing entries are. For that aim, matrix completion is the perfect tool. 
 
  
 
@@ -97,9 +97,9 @@ Matrix completion can be useful for our pipeline, since real data is far from pe
 \subsection{SVM}
 \label{svm}
 
-SVM (Support Vector machines) is a mathematical method that can be used to seperate datapoints into two sets by a hyperplane. They describe an optimization problem whose solution classifies of certain points into one group and the remaining points into the other group. The solution itself is a vector whose dimension equal the dimension of a datapoint. The optimization problems are made in a way such that an entry of that result vector, the 'classifier', has a high value if and only if there are big differences among classes regarding that particular entry. 
+SVM (Support Vector machines) is a mathematical method that can be used to seperate datapoints into two sets by a hyperplane. SVM describes an optimization problem whose solution classifies certain points into one group and the remaining points into the other group. The solution itself is a vector whose dimension equals the dimension of a datapoint. The optimization problems are made in a way such that an entry of that result vector, the 'classifier', has a high value if and only if there are big differences among classes regarding that particular entry. 
 
-SVM is useful for the detection of disease-causing genes, because by comparing the gene data of healthy and diseased people and applying SVM, the resulting classifier indicates which genes are important. Using that classifier, we can than make a statement about whether a person whose health we are not informed about is diseased or not. 
+SVM is useful for the detection of disease-causing genes, because by comparing the gene data of healthy and diseased people and applying SVM, the resulting classifier indicates which genes are important. Using that classifier, we can thaen make a statement about whether a person whose health we are not informed about is diseased or not. 
 
 A typical SVM optimazation problem looks like this: 
 
@@ -113,7 +113,7 @@ On https://ci.apache.org/projects/flink/flink-docs-release-0.8.1/\\
 examples.html the following can be found about the PageRank algorithm:\\\\
 `The PageRank algorithm computes the “importance” of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.`\\\\
 The `pages` in our case are genes. So by applying the PageRank algorithm to our data to both subgroups, healthy and diseased, seperately, we get information on which are the most `important` genes in one group.\\
-The network we run PageRank on is the following: Each gene is represented by a node and there is an (unweighted and undirected) edge between two genes $k$ and $l$ if the absolute value of the correlation coefficient of the k-th and l-th column of the data matrix ($p(k,l)$) is higher than a certain threshold. A high correlation coefficient hints that a frequent occurance of one gene in the genom of a body leads to a high occurance of the other or vice versa.
+The network we run PageRank on is the following: Each gene is represented by a node and there is an (unweighted and undirected) edge between two genes $k$ and $l$ if the absolute value of the correlation coefficient of the k-th and l-th column of the data matrix ($p(k,l)$) is higher than a certain threshold. This makes sense because a high correlation coefficient hints that a frequent occurance of one gene in the genom of a body leads to a high occurance of the other or vice versa.
 
 
 \subsection{Community Detection}
@@ -135,6 +135,8 @@ The Community Detection algorithm is, as is the PageRank algorithm, part of the 
 
     The user can specify all parameters that occur in the pipeline beforehand. They can have influence on the speed and the results of the workflow. Those parameters are:
 \begin{itemize}
+\item Data
+\item Data that has to be classified by the SVM classifier
 \item Decide whether matrix completion is done or not
 \item The number of factors that are used in the matrix completion algorithm
 \item Number of iterations of Matrix Completion algorithm
