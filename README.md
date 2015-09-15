@@ -14,7 +14,7 @@ Steps of workflow:
 The code can be found in the folder 'MyFlinkProject2'. The code I wrote can be found in the folder
 'src/main/scala/de/fuberlin.de/largedataanalysis' and in 'src/main/java'.
 
-USER ARGUMENTS:
+USER ARGUMENTS: \n
 OPTION 1:
   - Path to folder containing files from healthy people
   - Path to folder containing files from diseased people
