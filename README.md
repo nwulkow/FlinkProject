@@ -16,7 +16,6 @@ Steps of workflow:
 
 The Git-repository contains the source code in 'MyFlinkProject2', the results of the pipeline run on miRNA and mRNA data in 'Results' and the report in the main folder.
 The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br />
-The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br/>
 
 
 The code can be found in the folder 'MyFlinkProject2'. The code I wrote can be found in the folder
