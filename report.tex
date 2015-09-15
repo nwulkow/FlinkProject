@@ -7,12 +7,12 @@
 \begin{document}
 \firstpage{1}
 
-\title[short Title]{A Workflow for the identification of breast cancer inducing genes}
-\author[Sample \textit{et~al}]{Niklas Wulkow,$^{1}$
+\title[]{A Workflow for the identification of breast cancer inducing genes}
+\author[Niklas Wulkow]{Niklas Wulkow,$^{1}$
 \footnote{to whom correspondence should be addressed}}
 \address{$^{1}$Freie Universit{\"a}t Berlin}
 
-\history{Received on XXXXX; revised on XXXXX; accepted on XXXXX}
+\history{}
 
 \editor{}
 
@@ -20,10 +20,10 @@
 \begin{abstract}
 
 \section{Motivation:}
-With millions of genes and proteins, the human body provides tons of data that can be analyzed for various means. Detecting and identifying genes disease-causing genes and proteins is one of them. Multiple different approaches have been made therefore, from regression to network analysis. In this paper I will present some of them, that I have also included into an analysis 'pipeline', which can be fed with data and produces results as to which genes are candidates to be disease-causing. To be precise, the disease we are looking at is breast cancer ('Breast invasive carcinoma,' BRCA).
+With millions of genes and proteins, the human body provides tons of data that can be analyzed for various means. Detecting and identifying disease-causing genes and proteins is one of them. Multiple different approaches have been made therefore, from regression to network analysis. In this paper I will present some of them. I have also included them into an analysis 'pipeline', which can be fed with data and produces results as to which genes are candidates to be disease-causing. To be precise, the disease we are looking at is breast cancer ('Breast invasive carcinoma,' BRCA).
 
 \section{Results:}
-I will name genes that are, according to my pipeline, candidates to be disease-causing at the end of this article.
+I will name genes that are, according to my pipeline, candidates to be disease-causing at the end of this article and evaluate the results.
 
 \section{Availability and implementation:}
 My code is available at
@@ -44,18 +44,21 @@ This article is structured the following way: I will give an overview about the 
 
 The data that was used was taken from 'The Cancer Genome Atlas' (TCGA). This database offers real data contained in .txt-files for free. I ran my pipeline on two types of data: miRNA-data and mRNA-data. The miRNA-data consists of several datasets with 1046 features each, i.e. 1046 miRNA-codes and their corresponding frequency in the blood probe taken from a person. The mRNA-data contains 20502 features per person. 
 
-As every data package of mRNA and miRNA contains more than one type of data, I deleted some files and only considered the remaining ones. For miRNA, the used files have the ending '.mirna.quantification' and for mRNA, the used files end on 'rsem.genes.results'. 
+As every data package of mRNA and miRNA contains more than one type of data, I ignored some files and only considered the remaining ones. For miRNA, the used files have the ending '.mirna.quantification' and for mRNA, the used files end on 'rsem.genes.results'. 
 
 They are structured the following way: For miRNA, every .txt-file has four columns, the \texttt{miRNA-ID}, the \texttt{read\_count}, \texttt{reads\_per\_million\_miRNA\_mapped}
  and \texttt{cross\_mapped}. The first and third columns 
 are the ones we are interested in. For mRNA, the 
-.txt-files have the four columns \texttt{'gene\_id}, 
+.txt-files have the four columns: \texttt{gene\_id}, 
 \texttt{raw\_count}, \texttt{scaled\_estimate} and 
 \texttt{transcript\_id}. The lines 2-30 of the mRNA-files 
 also have to be erased. Fortunately, the entire reading process is done in the pipeline so the user does not have to change anything inside the files. 
 
- 
-
+\subsection{BIG data}
+An important attribute of the data is its size. Handling mutiple data points with thousand of entries each can provide problems. Running a not well constructed algorithm on the data on a slow computer can take far too long for the user to accept. Due to that, it need to be made sure that the workflow is constructed in a smart and efficient way.\\
+On top of that, there is Flink, an `open source platform for scalable batch and stream data processing` from https://flink.apache.org). It provides methods and network that enables users and developers to work on very large datasets very quickly. Its developers describe it as 'fast, easy to use, reliable, scalable, expressive' and 'hadoop-compatible'. It provides useful `API's` (application programming interfaces) for machine learning and graph analysis that I both incorporated into my pipeline.\\
+It also provides a network cluster which a program can be run on. The program is then supposed to be executed much faster compared to running it on a local machine.\\
+Further, there is a lot of programming source code available for free on GitHub that used Flink-algorithms and is written in Scala, a programming language whose advantage over other programming languages lies in the fact that is can deal with big datasets quicker. Hence, the pipeline was written in Scala.\\
  
 
  
@@ -63,13 +66,11 @@ also have to be erased. Fortunately, the entire reading process is done in the p
 \section{Methods:}
  
 
-I have included four Flink-based algorithms into my pipeline. Apache Flink is an `open source platform for scalable batch and stream data processing` (from https://flink.apache.org). It provides methods and network that enables users and developers to work on very large datasets very quickly. Its developers describe it as 'fast, easy to use, reliable, scalable, expressive' and 'hadoop-compatible'. It provides useful `API's` (application programming interfaces) for machine learning and graph analysis that I both incorporated into my pipeline. 
-
-Further, there is a lot of programming source code available for free on GitHub that used Flink-algorithms and is written in Scala, a programming language whose advantage over other programming languages lies in the fact that is can deal with big datasets quicker. Hence, the pipeline was written in Scala.\\
+I have included four Flink-based algorithms into my pipeline: Matrix Completion, SVM (Support Vector Machines), PageRank and Community Detection.
 
  
 
-\subsection{MATRIX COMPLETION: }
+\subsection{Matrix Completion: }
 \label{matrixcompletion_algo}
 
   
@@ -125,6 +126,13 @@ The Community Detection algorithm is, as is the PageRank algorithm, part of the 
  
 
 \subsection{User arguments}
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.5\textwidth]{/home/mi/nwulkow/ADL/Projekt/pipeline_sketch.png}
+\caption{Sketch of the pipeline.}
+\label{data_readin_geneslist}
+\end{figure}
+
     The user can specify all parameters that occur in the pipeline beforehand. They can have influence on the speed and the results of the workflow. Those parameters are:
 \begin{itemize}
 \item Decide whether matrix completion is done or not
@@ -133,13 +141,13 @@ The Community Detection algorithm is, as is the PageRank algorithm, part of the 
 \item Number of iterations of SVM algorithm
 \item SVM regularization constant
 \item SVM algorithm stepsize
-\item Maximal number of Genes that is considered. If the user selects $k$ as the maximal number of genes and the data contains more than k genes then only the first $k$ genes from every blood probe are considered
+\item Maximal number of Genes that is considered. If the user selects $k$ as the maximal number of genes and the data contains more than $k$ genes then only the first $k$ genes from every blood probe are considered
 \item The threshold for the network construction. An edge is put between two nodes $k$ and $l$ if the correlation coefficient $p(k,l)$ is higher than that threshold
 \item Names of genes that are not to be considered
 \end{itemize}
 
 \subsection{Input}
-The pipeline needs the path to the directory where the data is stored. The data of each groups must be stored in two different folders. More information on that in the user description file.
+The pipeline needs the path to the directory where the data is stored. The data of each group must be stored in a different folder. More information on that in the user description file.
 
 \subsection{Output}
 The output consists of 15 .txt-files. Seven of those contain information that the user of the pipeline might be interested in, i.e.:
@@ -161,36 +169,84 @@ The data that is meant here is:
 
 \subsection{Reading The Data}
 The first true step of the workflow is to read the data that it is supposed to work with. Under certain conditions, that can be an easy process. But as we do not know about the quality of our data we have to put in more effort to do that. As we want to keep alive the chance to apply matrix completion on the data, the data is parsed into a matrix.\\
-The problem is: We cannot be sure that every file that we read data from contains information on the same genes. So we can't simply read in the data from a file and store it in a row of the matrix.\\
+The problem is: We cannot be sure that every file that we read data from contains information on the same genes. So we cannot simply read in the data from a file and store it in a row of the matrix.\\
 What is hence done in the pipeline is the following: First of all a list of all genes that occur in the whole of the data is created. The list starts with all genes from the first file. If a new gene occurs in another file it is appended to the back end of the list.\\
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.5\textwidth]{/home/mi/nwulkow/ADL/Projekt/data_readin_geneslist.png}
+\caption{Sketch of the creation of the data matrix. At first, a list of all genes that occur in the data is put together.}
+\label{data_readin_geneslist}
+\end{figure}
+
 Afterwards we look through the data files for a second time: We consider a gene with corresponding value $v$, look for the index $i$ of that gene ID in the gene list and store $v$ in the i-th column (and according row) of the data matrix.\\
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.5\textwidth]{/home/mi/nwulkow/ADL/Projekt/data_readin_matrix.png}
+\caption{Sketch of the creation of the data matrix. For a tuple of a gene and its corresponding value for particular person we look for the index of that gene in the genelist und store the value in the according column (and row) in the data matrix.}
+\label{data_readin_matrix}
+\end{figure}
+
 Also, the matrix is stored in a .txt-file in csv-format to be used by the matrix completion algorithm. As explained earlier, only files that have the correct ending (`mirna.quantification` for miRNA and `rsem.genes.normalized\_results` for mRNA) are used.\\
 If the user has fixed a maximal number $k$ of genes, we continue with only the first $k$ columns of the matrix.
 
 \subsection{Matrix Completion}
-Matrix completion is optional. The user can decide for or against it in the programming arguments.\\\\
+Matrix completion is optional. The user can decide for or against it in the programming arguments. If no matrix completion is done, missing values are represented with a $0$ in the data matrix.\\\\
 The output of the algorithm are .txt-files that contain the rows of the matrix factors $U$ and $V$ (see \ref{matrixcompletion_algo}). Those factors have to be read from the output files. Eventually matrix multiplication of the two factors with each other needs to be done.\\
 The resulting matrix then has the same format as the matrix that the matrix completion algorithm was fed with.
 
 
 \subsection{SVM}
-In order to apply an SVM method the data needs to be stored in a complety different format. The only way I found in which I can parse it into that format is the indirect way of writing it into another .txt-file in a certain way and then apply a common reading-method.\\
+In order to apply an SVM method the data needs to be stored in a completely different format. The only way I found in which I can parse it into that format is the indirect way of writing it into another .txt-file in a certain way and then applying a common reading-method.\\
 The SVM method needs each row of the data matrix as a vector with a corresponding `label`. The label is $1$ if the data vector belongs to a healthy person and $-1$ if it belongs to a diseased person.\\
 \subsubsection{Training}
 After doing the SVM on the data, the result we get is the classifier that carries the weights of all genes. It partly depends on the tuning of the parameters.
 \subsubsection{Testing}
-In the next step, we apply the classifier to data. We can classify people whose healthy is unknown to us (or simply test the accuracy of the classifier if we do know about the health) by looking at the scalar product of the classifier and the data vector (see \ref{svm}).\\
+In the next step, we apply the classifier to data. We can classify people whose health is unknown to us (or simply test the accuracy of the classifier if we do know about the health) by looking at the scalar product of the classifier and the data vector (see \ref{svm}).\\
 The results of the classification and the classifier are then stored in a .txt-file.\\
-For the read in of that data we proceed the same way as during the read in of the training data.
+For the read in of that data we proceed the same way as during the read in of the training data (Figure \ref{data_readin_matrix}).\\
+
+\subsection{Network Analysis}
+As addressed earlier, the pipeline uses two different network analysis methods: PageRank and Community Detection.\\
+Two networks are created: One for only the healthy people and one for only the diseased people. The networks and the results of the analysis methods on them can be compared later on.\\
+During the network creation, for every pair of genes the correlationcoefficient $p$ of the corresponding columns in the data matrix is computed. The mean and variance of every column of the data matrix (so the mean and variance of all values belonging to the same gene) are computed beforehand and plugged into the method that calculates the correlationcoefficient, so mean and variance only have to be computed once for each gene and not every time anew.\\
+If the (absolute value of the) $p$-value is above a certain threshold, an (unweighted and undirected) edge is created between the two genes in the network. The network is stored in a .txt-file. Now the PageRank and Community Detection algorithms can be let loose on the data.\\
+Their results are stored in .gdf-files, readable by Gephi. Additionally, for every gene the rank (not the PageRank value but actually how many genes there are that have a higher PageRank value) it was given from the PageRank algorithm for the healthy-people-network is compared to the one from the diseased-people-network: If a gene is in 300th place in the list of PageRanks for the healthy-people-network and in 800th in the other one, the distance is 500. The thought behind it is the following: If a gene plays a big role in the diseased-people-network (i.e. it has a high PageRank value there) and a small role in the healthy-people-network it is one to look at when it comes to the question which genes are disease causing. For all genes, this distance is written into the .txt-file with the name 'rank\_differences'.\\
 
 
-    Zu klassifizierende Daten einlesen und classifier anwenden 
 
-    Network: Korrelation. Fürs Tempo: Erst Means und variances ausrechnen 
+\section{Results}
+\subsection{miRNA}
+I ran the pipeline on miRNA data of Breast Invasive Carcinoma, Batch 93 from the TCGA database. It contains 42 mirna.quantification-files from healthy and 30 from diseased people.\\
+The five miRNA-IDs with the lowest (highest negative) value in the classifier are: \texttt{hsa-mir-10b}, \texttt{hsa-mir-143}, \texttt{hsa-mir-10a}, \texttt{hsa-mir-22} and \texttt{hsa-mir-100}. The five miRNA-IDs with the highest positive value are: \texttt{hsa-mir-21}, \texttt{hsa-mir-182}, \texttt{hsa-mir-99b}, \texttt{hsa-mir-148a} and \texttt{hsa-mir-30a}.\\
+The five miRNA-IDs with the highest rank difference are: \texttt{hsa-mir-198},\texttt{hsa-mir-1933},\texttt{hsa-mir-548c},\texttt{hsa-mir-3676} and \texttt{hsa-mir-941-4}. However the top genes from the classifier do not have particularly high rank differences. It is questionable how meaningful the rank difference actually is.\\\\
+As I ran the pipeline for a second time on the same data, the classifier was identical to the one from the the first run. That does not hold for the results of the network analysis though.\\\\
+I used the very same data for testing of the classifier. Out of the 72 people, 56 were classified correctly. Applying the classifier to data from a different batch of the TCGA BRCA data, 69 out of 71 were classified correctly.\\\\
+Running the workflow from start to finish took 1:18 minutes when executed locally.\\\\
+I do not quite know how to interpret the miRNA results but this makes more sense with the mRNA results.
+\subsection{mRNA}
+Running the pipeline on mRNA data (20 healthy and 17 diseased people, batch 93 of the TCGA database), the top disease causing gene is - according to the classifier - AHNAK. The webpage www.proteinatlas.org gives information on how much a gene is associated with a certain disease by today's knowledge. It gives evidence that indeed AHNAK is well known to cause breast cancer. That however might be a lucky coincidence as it does not seem to be the case for all mRNA genes that have a high negative weight. It is not obvious that most of the mRNA genes with high negative weight are known to be diseasce-causing. The good news is that almost all those mRNA genes are not associated to different types of cancer if they are not associated to breast cancer, yet they tend to be if one actually is linked to breast cancer. On the other hand, according to proteinatlas.org and research papers that are published digitally, many of the mRNA genes with a high positive weight are also linked to breast cancer. All in all, the information the classifier provides does not match the information on proteinatlas.org in a satisfactory way.\\
+Whereas the classifier managed to classify 10 out of 10 instances of test data (5 healthy, 5 diseased) from batch 96 correctly.
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.5\textwidth]{/home/mi/nwulkow/ADL/Projekt/proteinatlas.png}
+\caption{proteinatlas.org gives insight on how much a gene is linked to different types of cancer.}
+\label{data_readin_matrix}
+\end{figure}\\
 
-    Network in txt-file schreiben 
 
-    PagerankBasic und GellyAPI 
+\section{Discussion and Outlook}
+
+
+As the discrepancies between the genes that the classifier states are important and results from the web suggest, universal correctness of results cannot be taken for granted. The fact that the classifier that was created in the pipeline provides relatively high accuracy emphasises that two equally correct statements can differ a lot.\\
+The data itself surely is one major reason for that. Samples of the data, even data files from the TCGA database, might not mirror the reality exactly as e.g. the people who gave their blood probes may have been much older than average. The experiments that create the results on pages like proteinatlas.org might not either. But it becomes obvious that the data that is worked with should be as close to the reality as possible.\\
+Another reason for deviations between the results are parameters that are used in the methods. Even the starting point of an algorithm can influence the outcome of the method.\\
+Fortunately, there are several completely different approaches to the task. In this article, three have been explained: The machine learning based SVM and the network analysis tools of PageRank and Community Detection. Surely there is great potential in them but as some of the methods are relatively new, experience has to be gained about how they behave under certain conditions, how to set the parameters and - most importantly - how to interpret the results.\\\\
+In conclusion, the quest for disease-causing genes seems to be run at full throttle. Many different tools have helped research take big steps forward. As a human body carries tons of genes and with them tons of data, the handling of big data is an interesting point, too. The datasets quickly become too big to analysis them in short time on every computer. That problem is also being tackled, for example by Flink and their network cluster which a program can be run on very fast instead of running it on a local computer and taking much more time.\\
+Cancer research with mathematical means is an interesting field that will surely develop further in the near future.
+
+
+
+ 
 
      
 \end{document}
