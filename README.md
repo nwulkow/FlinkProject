@@ -1,7 +1,10 @@
+<<<<<<< HEAD
 # FlinkProject
 <<<<<<< HEAD
 Niklas Wulkow's Flink Project on Biomedical Data analysis
 =======
+=======
+>>>>>>> 204ed18000889bb9d93255b7074c2617b13a0083
 Niklas Wulkow's Flink Project on Biomedical Data analysis<br />
 >>>>>>> 7d931bd5c4b65c86aff118d3d0722c076eef064e
 Analysis Pipeline; written in Scala;<br />
@@ -15,7 +18,12 @@ Steps of workflow:
   - Store all results in .txt-files
 
 The Git-repository contains the source code in 'MyFlinkProject2', the results of the pipeline run on miRNA and mRNA data in 'Results' and the report in the main folder.
+<<<<<<< HEAD
 The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br />
+=======
+The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br/>
+
+>>>>>>> 204ed18000889bb9d93255b7074c2617b13a0083
 
 <<<<<<< HEAD
 =======
@@ -34,6 +42,7 @@ OPTION 1:
     but allow him to choose which he enters the following way: Write a sentence that contains a KEY WORD and a value, e.g.
     'number of SVM iterations is 100' or 'threshold = 0.8'. Sentences have to be seperated by the word 'STOP'. At the start
     and end of it there have to be quotation marks. If you leave out one parameter, a default value will be used.
+<<<<<<< HEAD
     Here is how to specify every parameter:
     Parameter				Key words that must occur	Default value<br />
     do matrix completion		completion, yes			true<br />
@@ -44,6 +53,18 @@ OPTION 1:
     SVM stepsize			SVM, stepsize			0.01<br />
     network threshold			threshold			0.9<br />
     maximal number of genes		maxGenes OR Genanzahl		25000<br />
+=======
+    Here is how to specify every parameter:<br />
+    Parameter		|		Key words that must occur |	Default value<br />
+    do matrix completion |		completion, yes |			true<br />
+    matrix completion factors	|	factors		|		10<br />
+    matrix completion iterations |	completion, iterations	|	100<br />
+    SVM iterations	|		SVM, iterations		|	100<br />
+    SVM regularization	|		SVM, regularization	|	0.01<br />
+    SVM stepsize	|		SVM, stepsize		|	0.01<br />
+    network threshold	 |	threshold		|	0.9<br />
+    maximal number of genes	|	maxGenes OR Genanzahl	|	25000<br />
+>>>>>>> 204ed18000889bb9d93255b7074c2617b13a0083
     
     An example input for the program arguments is:<br />
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full/Healthy<br />
@@ -57,7 +78,11 @@ OPTION 1:
 OPTION 2 differs only slightly from OPTION 1:<br />
 Instead of setting the path to the 'healthy' and the 'diseased' folder and the path where the Output-folder shall be created,
 the user enters only one path to a folder that directly contains the 'healthy' and the 'diseased' folder, which must have
+<<<<<<< HEAD
 the names "Healthy" and "Diseased". There the Output-folder is also created.
+=======
+the names "Healthy" and "Diseased". There the Output-folder is also created. <br />
+>>>>>>> 204ed18000889bb9d93255b7074c2617b13a0083
 Example:<br />
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full<br />
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full/Testing<br />
