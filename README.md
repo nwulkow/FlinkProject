@@ -20,7 +20,7 @@ The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/larg
 
 The code can be found in the folder 'MyFlinkProject2'. The code I wrote can be found in the folder
 'src/main/scala/de/fuberlin.de/largedataanalysis' and in 'src/main/java'.<br />
-Might be that the jar-file doesn't work but it does lcoally.
+Might be that the jar-file doesn't work but the program does locally.
 
 USER ARGUMENTS:<br />
 OPTION 1:
