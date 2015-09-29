@@ -6,7 +6,7 @@ Built-By: tc
 Specification-Vendor: The Apache Software Foundation
 Specification-Title: fu-berlin-largedataanalysis
 Implementation-Vendor-Id: org.apache.flink
-program-class: de.fuberlin.de.largedataanalysis.SVM
+program-class: de.fuberlin.de.largedataanalysis.Pipeline
 Implementation-Vendor: The Apache Software Foundation
 Created-By: Apache Maven 3.2.3
 Build-Jdk: 1.8.0_20
