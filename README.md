@@ -52,7 +52,7 @@ OPTION 1:
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full/Testing<br />
     hsa-mir-100, hsa-mir-1-1<br />
     "ich will 10 factors STOP und matrix completion = yes STOP SVM iterations ist 80 STOP<br />
-    SVM regularization soll 0.015 sein STOP selected Genes = 1000 STOP threshold ist 0.8"<br />
+    SVM regularization soll 0.015 sein STOP maxGenes = 1000 STOP threshold ist 0.8"<br />
     
 OPTION 2 differs only slightly from OPTION 1:<br />
 Instead of setting the path to the 'healthy' and the 'diseased' folder and the path where the Output-folder shall be created,
@@ -64,4 +64,4 @@ Example:<br />
     /home/mi/nwulkow/ADL/Projekt/Data/RNA/Full/Testing<br />
     None<br />
     "ich will 10 factors STOP und matrix completion = yes STOP SVM iterations ist 80 STOP<br />
-    SVM regularization soll 0.015 sein STOP selected Genes = 1000 STOP threshold ist 0.8"<br />
+    SVM regularization soll 0.015 sein STOP maxGenes = 1000 STOP threshold ist 0.8"<br />
