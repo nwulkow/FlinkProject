@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Implementation-Title: flink-java-examples
+Implementation-Title: MyFlinkProject2
 Implementation-Version: 0.10.0
 Archiver-Version: Plexus Archiver
 Built-By: tc
