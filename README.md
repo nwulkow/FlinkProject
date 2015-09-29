@@ -14,12 +14,13 @@ Steps of workflow:
   - Do Cluster analysis
   - Store all results in .txt-files
 
-The Git-repository contains the source code in 'MyFlinkProject2', the results of the pipeline run on miRNA and mRNA data in 'Results' and the report in the main folder.
-The code I wrote can be found in the folders 'src/main/scala/de/fuberlin.de/largedataanalysis' and 'src/main/java'.<br />
+The Git-repository contains the source code in 'MyFlinkProject2', the results of the pipeline run on miRNA and mRNA data in 'Results' and the report in the main folder.<br />
 
 
 The code can be found in the folder 'MyFlinkProject2'. The code I wrote can be found in the folder
-'src/main/scala/de/fuberlin.de/largedataanalysis' and in 'src/main/java'.
+'src/main/scala/de/fuberlin.de/largedataanalysis' and in 'src/main/java'.<br />
+It might be that the jar-file doesn't work but the program does locally.<br />
+I have tested the pipeline using different unittests. <br />
 
 USER ARGUMENTS:<br />
 OPTION 1:
