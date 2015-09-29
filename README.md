@@ -19,7 +19,7 @@ The Git-repository contains the source code in 'MyFlinkProject2', the results of
 
 The code can be found in the folder 'MyFlinkProject2'. The code I wrote can be found in the folder
 'src/main/scala/de/fuberlin.de/largedataanalysis' and in 'src/main/java'.<br />
-Might be that the jar-file doesn't work but the program does locally.<br />
+It might be that the jar-file doesn't work but the program does locally.<br />
 I have tested the pipeline using different unittests. <br />
 
 USER ARGUMENTS:<br />
