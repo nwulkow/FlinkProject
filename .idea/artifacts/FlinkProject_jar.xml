@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="FlinkProject:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/FlinkProject_jar</output-path>
+    <root id="archive" name="FlinkProject.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/MyFlinkProject2/src/main/resources/META-INF/MANIFEST.MF" />
+      </element>
+      <element id="module-output" name="FlinkProject" />
+      <element id="module-output" name="FlinkML" />
+      <element id="dir-copy" path="$PROJECT_DIR$/MyFlinkProject2/src/main/resources/META-INF" />
+    </root>
+  </artifact>
+</component>
