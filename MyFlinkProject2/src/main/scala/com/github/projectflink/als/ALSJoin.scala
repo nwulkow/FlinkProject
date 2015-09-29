@@ -6,7 +6,6 @@ import com.github.projectflink.common.als.{ALSUtils, Factors, Rating}
 import com.github.projectflink.util.FlinkTools
 import de.fuberlin.de.largedataanalysis.{Tools, Pipeline}
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.recommendation.ALS.{Factorization, Rating}
 import org.apache.flink.util.Collector
 import org.jblas.{Solve, SimpleBlas, FloatMatrix}
 
